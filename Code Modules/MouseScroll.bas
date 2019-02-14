@@ -62,6 +62,7 @@ Option Private Module
         Private Declare PtrSafe Function GetCurrentThreadId Lib "kernel32" () As Long
         Private Declare PtrSafe Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
         Private Declare PtrSafe Function GetWindow Lib "user32" (ByVal hwnd As LongPtr, ByVal wCmd As Long) As LongPtr
+        Private Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IsWindowEnabled Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As LongPtr, ByVal hmod As LongPtr, ByVal dwThreadId As Long) As LongPtr
@@ -72,6 +73,7 @@ Option Private Module
         Private Declare Function GetCurrentThreadId Lib "kernel32" () As Long
         Private Declare Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
         Private Declare Function GetWindow Lib "user32" (ByVal hwnd As Long, ByVal wCmd As Long) As Long
+        private Declare Function IsWindow Lib "user32" Alias "IsWindow" (ByVal hwnd As Long) As Long
         Private Declare Function IsWindowEnabled Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As Long) As Long
         Private Declare Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As Long, ByVal hmod As Long, ByVal dwThreadId As Long) As Long
@@ -298,10 +300,17 @@ Private Function MouseProc(ByVal ncode As Long _
                          , ByVal wParam As Long _
                          , ByRef lParam As MOUSEHOOKSTRUCTEX) As Long
 #End If
+    Dim ignoreInput As Boolean
+    '
     'Unhook if Form Handle is lost
     If m_hWndForm = 0 Then UnHookMouse
-    'Unhook if Form is Disabled
-    If Not CBool(IsWindowEnabled(m_hWndForm)) Then UnHookMouse
+    '
+    'Unhook if Form's Window is missing
+    If Not CBool(IsWindow(m_hWndForm)) Then UnHookMouse
+    '
+    'Ignore input if Window is not Active
+    If Not CBool(IsWindowEnabled(m_hWndForm)) Then ignoreInput = True
+    '
     'Unhook if Owner is active (Modeless Form)
     If CBool(IsWindowEnabled(m_hWndOwner)) Then UnHookMouse
     '
@@ -311,7 +320,7 @@ Private Function MouseProc(ByVal ncode As Long _
     '   removed from the message queue
     'In case of negative or HC_NOREMOVE nCode the function will pass the message
     '   to the CallNextHookEx function and return it's value
-    If CBool(m_hHookMouse) Then 'necessary in case the form was unhooked above
+    If CBool(m_hHookMouse) And Not ignoreInput Then
         If ncode = HC_ACTION Then
             If wParam = WM_MOUSEWHEEL Or wParam = WM_MOUSEHWHEEL Then
                 Dim scrollAmount As SCROLL_AMOUNT

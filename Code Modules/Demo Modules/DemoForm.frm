@@ -23,6 +23,10 @@ Private Sub CheckBox1_Click()
     HookMouseToForm Me, CheckBox1.Value
 End Sub
 
+Private Sub CommandButton1_Click()
+    MsgBox "Demo"
+End Sub
+
 Private Sub UserForm_Initialize()
     Me.StartUpPosition = 0
     Me.Left = Application.Left + Application.Width / 2 - Me.Width / 2
