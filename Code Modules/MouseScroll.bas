@@ -61,7 +61,10 @@ Option Private Module
         Private Declare PtrSafe Function CallNextHookEx Lib "user32" (ByVal hHook As LongPtr, ByVal ncode As Long, ByVal wParam As LongPtr, lParam As Any) As LongPtr
         Private Declare PtrSafe Function GetCurrentThreadId Lib "kernel32" () As Long
         Private Declare PtrSafe Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
+        Private Declare PtrSafe Function GetActiveWindow Lib "user32" () As LongPtr
         Private Declare PtrSafe Function GetWindow Lib "user32" (ByVal hwnd As LongPtr, ByVal wCmd As Long) As LongPtr
+        Private Declare PtrSafe Function GetWindowText Lib "user32" Alias "GetWindowTextA" (ByVal hwnd As LongPtr, ByVal lpString As String, ByVal cch As Long) As Long
+        Private Declare PtrSafe Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IsWindowEnabled Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As LongPtr) As Long
@@ -72,8 +75,11 @@ Option Private Module
         Private Declare Function CallNextHookEx Lib "user32" (ByVal hHook As Long, ByVal ncode As Long, ByVal wParam As Long, lParam As Any) As Long
         Private Declare Function GetCurrentThreadId Lib "kernel32" () As Long
         Private Declare Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
+        Private Declare PtrSafe Function GetActiveWindow Lib "user32" () As Long
         Private Declare Function GetWindow Lib "user32" (ByVal hwnd As Long, ByVal wCmd As Long) As Long
-        private Declare Function IsWindow Lib "user32" Alias "IsWindow" (ByVal hwnd As Long) As Long
+        Private Declare Function GetWindowText Lib "user32" Alias "GetWindowTextA" (ByVal hwnd As Long, ByVal lpString As String, ByVal cch As Long) As Long
+        Private Declare Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" (ByVal hwnd As Long) As Long
+        Private Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function IsWindowEnabled Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As Long) As Long
         Private Declare Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As Long, ByVal hmod As Long, ByVal dwThreadId As Long) As Long
@@ -179,7 +185,7 @@ Private Enum CONTROL_TYPE
     ctFrame = 3
     ctPage = 4
     ctMulti = 5
-    ctform = 6
+    ctForm = 6
     ctText = 7
     ctOther = 8
 End Enum
@@ -203,6 +209,7 @@ Private m_passScrollToParentAtMargins As Boolean
 Public Function HookMouseToForm(hookedForm As MSForms.UserForm _
     , Optional ByVal passScrollToParentAtMargins As Boolean = True _
 ) As Boolean
+    'Exit Function
     If hookedForm Is Nothing Then Exit Function
     '
     Dim isHookSuccessful As Boolean
@@ -271,11 +278,11 @@ End Sub
 '*******************************************************************************
 Private Sub TerminateControls()
     If Not m_controls Is Nothing Then
-        Dim ctrl As MouseOverControl
+        Dim Ctrl As MouseOverControl
         '
-        For Each ctrl In m_controls
-            ctrl.TerminateReferences
-        Next ctrl
+        For Each Ctrl In m_controls
+            Ctrl.TerminateReferences
+        Next Ctrl
         Set m_controls = Nothing
     End If
 End Sub
@@ -283,8 +290,8 @@ End Sub
 '*******************************************************************************
 'Called by MouseMove capable controls (MouseOverControl) stored in m_controls
 '*******************************************************************************
-Public Sub SetHoveredControl(ctrl As Object)
-    Set m_lastHoveredControl = ctrl
+Public Sub SetHoveredControl(Ctrl As Object)
+    Set m_lastHoveredControl = Ctrl
 End Sub
 
 '*******************************************************************************
@@ -300,6 +307,9 @@ Private Function MouseProc(ByVal ncode As Long _
                          , ByVal wParam As Long _
                          , ByRef lParam As MOUSEHOOKSTRUCTEX) As Long
 #End If
+    'Unhook if a VBE window is active
+    If IsVBEActive Then UnHookMouse
+    '
     Dim ignoreInput As Boolean
     '
     'Unhook if Form Handle is lost
@@ -432,18 +442,18 @@ End Function
 '*******************************************************************************
 'Vertically scroll a control or the hooked Form itself
 '*******************************************************************************
-Private Sub ScrollY(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
+Private Sub ScrollY(Ctrl As Object, scrollAmount As SCROLL_AMOUNT)
     Const scrollPointsPerLine As Single = 6
-    Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(ctrl)
+    Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(Ctrl)
     '
     Select Case ctrlType
         Case ctNone
             Exit Sub
         Case ctCombo, ctList
-            Call ListScrollY(ctrl, scrollAmount, ctrlType)
-        Case ctFrame, ctPage, ctMulti, ctform
+            Call ListScrollY(Ctrl, scrollAmount, ctrlType)
+        Case ctFrame, ctPage, ctMulti, ctForm
             If ctrlType = ctMulti Then
-                Set ctrl = ctrl.SelectedItem
+                Set Ctrl = Ctrl.SelectedItem
                 ctrlType = ctPage
             End If
             '
@@ -453,7 +463,7 @@ Private Sub ScrollY(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
             '
             'Store the Top position of the scroll. Can throw - must guard
             On Error Resume Next
-            lastScrollTop = ctrl.ScrollTop
+            lastScrollTop = Ctrl.ScrollTop
             If Err.Number <> 0 Then
                 Err.Clear
                 Exit Sub
@@ -463,47 +473,47 @@ Private Sub ScrollY(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
             'Compute the new Top position
             newScrollTop = lastScrollTop _
                 - scrollAmount.lines * scrollPointsPerLine _
-                - scrollAmount.pages * ctrl.InsideHeight
+                - scrollAmount.pages * Ctrl.InsideHeight
             '
             'Clamp the new scroll value
-            maxScroll = ctrl.ScrollHeight - ctrl.InsideHeight
+            maxScroll = Ctrl.ScrollHeight - Ctrl.InsideHeight
             If newScrollTop > maxScroll Then newScrollTop = maxScroll
             If newScrollTop < 0 Then newScrollTop = 0
             '
             'Apply new scroll if needed
-            If ctrl.ScrollTop <> newScrollTop Then
-                ctrl.ScrollTop = newScrollTop
-                If ctrlType = ctform Then ctrl.Repaint
+            If Ctrl.ScrollTop <> newScrollTop Then
+                Ctrl.ScrollTop = newScrollTop
+                If ctrlType = ctForm Then Ctrl.Repaint
             End If
             '
             If m_passScrollToParentAtMargins Then
                 'If scroll hasn't changed pass scroll to parent control
-                If ctrl.ScrollTop = lastScrollTop And ctrlType <> ctform Then
-                    If ctrlType = ctPage Then Set ctrl = ctrl.Parent 'Multi
-                    Call ScrollY(ctrl.Parent, scrollAmount)
+                If Ctrl.ScrollTop = lastScrollTop And ctrlType <> ctForm Then
+                    If ctrlType = ctPage Then Set Ctrl = Ctrl.Parent 'Multi
+                    Call ScrollY(Ctrl.Parent, scrollAmount)
                 End If
             End If
         Case ctText
-            Call TBoxScrollY(ctrl, scrollAmount)
+            Call TBoxScrollY(Ctrl, scrollAmount)
         Case Else
             'Control is not scrollable. Pass scroll to parent
             Dim parentCtrlType As CONTROL_TYPE
             '
             On Error Resume Next 'Necessary during Form Init
-            parentCtrlType = GetControlType(ctrl.Parent)
+            parentCtrlType = GetControlType(Ctrl.Parent)
             On Error GoTo 0
-            If parentCtrlType <> ctNone Then ScrollY ctrl.Parent, scrollAmount
+            If parentCtrlType <> ctNone Then ScrollY Ctrl.Parent, scrollAmount
     End Select
 End Sub
 
 '*******************************************************************************
 'Vertically scroll a ComboBox or a ListBox control
 '*******************************************************************************
-Private Sub ListScrollY(ctrl As Object _
+Private Sub ListScrollY(Ctrl As Object _
                       , scrollAmount As SCROLL_AMOUNT _
                       , ctrlType As CONTROL_TYPE _
 )
-    Dim lastTopIndex As Long: lastTopIndex = ctrl.TopIndex
+    Dim lastTopIndex As Long: lastTopIndex = Ctrl.TopIndex
     Dim newTopIndex As Long
     '
     If scrollAmount.lines <> 0 Then
@@ -512,11 +522,11 @@ Private Sub ListScrollY(ctrl As Object _
         Dim linesPerPage As Long
         '
         If ctrlType = ctCombo Then
-            linesPerPage = ctrl.ListRows
+            linesPerPage = Ctrl.ListRows
         Else
-            ctrl.TopIndex = ctrl.ListCount - 1
-            linesPerPage = VBA.Int(ctrl.ListCount - ctrl.TopIndex)
-            ctrl.TopIndex = lastTopIndex
+            Ctrl.TopIndex = Ctrl.ListCount - 1
+            linesPerPage = VBA.Int(Ctrl.ListCount - Ctrl.TopIndex)
+            Ctrl.TopIndex = lastTopIndex
         End If
         newTopIndex = lastTopIndex - scrollAmount.pages * linesPerPage
     End If
@@ -524,22 +534,22 @@ Private Sub ListScrollY(ctrl As Object _
     'Clamp the new scroll top
     If newTopIndex < 0 Then
         newTopIndex = 0
-    ElseIf newTopIndex >= ctrl.ListCount Then
-        newTopIndex = ctrl.ListCount - 1
+    ElseIf newTopIndex >= Ctrl.ListCount Then
+        newTopIndex = Ctrl.ListCount - 1
     End If
     '
     On Error Resume Next 'could fail for undropped ComboBox
-    If lastTopIndex <> newTopIndex Then ctrl.TopIndex = newTopIndex
+    If lastTopIndex <> newTopIndex Then Ctrl.TopIndex = newTopIndex
     If Err.Number <> 0 Then
         Err.Clear
-        Call ScrollY(ctrl.Parent, scrollAmount)
+        Call ScrollY(Ctrl.Parent, scrollAmount)
         Exit Sub
     End If
     On Error GoTo 0
     '
     If m_passScrollToParentAtMargins Then
-        If ctrl.TopIndex = lastTopIndex Then
-            Call ScrollY(ctrl.Parent, scrollAmount)
+        If Ctrl.TopIndex = lastTopIndex Then
+            Call ScrollY(Ctrl.Parent, scrollAmount)
         End If
     End If
 End Sub
@@ -644,7 +654,7 @@ Private Function GetTextBoxLineHeight(tbox As MSForms.TextBox) As Single
     '
     'If the last line is empty then the AutoSize is ignoring it and an
     '   adjustment is needed for the total line count
-    If VBA.Right$(tbox.Text, 2) = vbNewLine Then linesCount = linesCount - 1
+    If VBA.Right$(tbox.text, 2) = vbNewLine Then linesCount = linesCount - 1
     lineHeight = (tbox.Height - topOffsetPt) / linesCount
     '
     'Restore TextBox state
@@ -666,16 +676,16 @@ End Function
 'Code is very similar to the ScrollY method with main difference being that
 '   all values are relative to the Left instead of the Top side
 '*******************************************************************************
-Private Sub ScrollX(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
+Private Sub ScrollX(Ctrl As Object, scrollAmount As SCROLL_AMOUNT)
     Const scrollPointsPerColumn As Single = 15
-    Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(ctrl)
+    Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(Ctrl)
     '
     Select Case ctrlType
         Case ctNone
             Exit Sub
-        Case ctFrame, ctPage, ctMulti, ctform
+        Case ctFrame, ctPage, ctMulti, ctForm
             If ctrlType = ctMulti Then
-                Set ctrl = ctrl.SelectedItem
+                Set Ctrl = Ctrl.SelectedItem
                 ctrlType = ctPage
             End If
             '
@@ -685,7 +695,7 @@ Private Sub ScrollX(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
             '
             'Store the Left position of the scroll. Can throw - must guard
             On Error Resume Next
-            lastScrollLeft = ctrl.ScrollLeft
+            lastScrollLeft = Ctrl.ScrollLeft
             If Err.Number <> 0 Then
                 Err.Clear
                 Exit Sub
@@ -695,24 +705,24 @@ Private Sub ScrollX(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
             'Compute the new Left position
             newScrollLeft = lastScrollLeft _
                 - scrollAmount.lines * scrollPointsPerColumn _
-                - scrollAmount.pages * ctrl.InsideWidth
+                - scrollAmount.pages * Ctrl.InsideWidth
             '
             'Clamp the new scroll value
-            maxScroll = ctrl.ScrollWidth - ctrl.InsideWidth
+            maxScroll = Ctrl.ScrollWidth - Ctrl.InsideWidth
             If newScrollLeft > maxScroll Then newScrollLeft = maxScroll
             If newScrollLeft < 0 Then newScrollLeft = 0
             '
             'Apply new scroll if needed
-            If ctrl.ScrollLeft <> newScrollLeft Then
-                ctrl.ScrollLeft = newScrollLeft
-                If ctrlType = ctform Then ctrl.Repaint
+            If Ctrl.ScrollLeft <> newScrollLeft Then
+                Ctrl.ScrollLeft = newScrollLeft
+                If ctrlType = ctForm Then Ctrl.Repaint
             End If
             '
             'If scroll hasn't changed pass scroll to parent control
             If m_passScrollToParentAtMargins Then
-                If ctrl.ScrollLeft = lastScrollLeft And ctrlType <> ctform Then
-                    If ctrlType = ctPage Then Set ctrl = ctrl.Parent 'Multi
-                    ScrollX ctrl.Parent, scrollAmount
+                If Ctrl.ScrollLeft = lastScrollLeft And ctrlType <> ctForm Then
+                    If ctrlType = ctPage Then Set Ctrl = Ctrl.Parent 'Multi
+                    ScrollX Ctrl.Parent, scrollAmount
                 End If
             End If
         Case Else
@@ -720,9 +730,9 @@ Private Sub ScrollX(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
             Dim parentCtrlType As CONTROL_TYPE
             '
             On Error Resume Next 'Necessary during Form Init
-            parentCtrlType = GetControlType(ctrl.Parent)
+            parentCtrlType = GetControlType(Ctrl.Parent)
             On Error GoTo 0
-            If parentCtrlType <> ctNone Then ScrollX ctrl.Parent, scrollAmount
+            If parentCtrlType <> ctNone Then ScrollX Ctrl.Parent, scrollAmount
     End Select
 End Sub
 
@@ -749,7 +759,7 @@ Private Function GetControlType(objControl As Object) As CONTROL_TYPE
             GetControlType = ctText
         Case Else
             If TypeOf objControl Is MSForms.UserForm Then
-                GetControlType = ctform
+                GetControlType = ctForm
             Else
                 GetControlType = ctOther
             End If
@@ -812,4 +822,25 @@ Private Function HiMetricToPoints(ByVal hiMetric As Long) As Single
 End Function
 Private Function PointsToHiMeter(ByVal pts As Single) As Long
     PointsToHiMeter = CLng(pts / 0.0283464)
+End Function
+
+'*******************************************************************************
+'Returns the String Caption of a Window identified by a handle
+'*******************************************************************************
+#If VBA7 Then
+    Private Function GetWindowCaption(ByVal hwnd As LongPtr) As String
+#Else
+    Private Function GetWindowCaption(ByVal hwnd As Long) As String
+#End If
+    Dim bufferLength As Long: bufferLength = GetWindowTextLength(hwnd)
+    GetWindowCaption = VBA.Space$(bufferLength)
+    GetWindowText hwnd, GetWindowCaption, bufferLength + 1
+End Function
+
+'*******************************************************************************
+'Checks if the ActiveWindow is a VBE Window
+'*******************************************************************************
+Private Function IsVBEActive() As Boolean
+    IsVBEActive = VBA.InStr(1, GetWindowCaption(GetActiveWindow()) _
+        , "Microsoft Visual Basic", vbTextCompare) <> 0
 End Function
