@@ -27,6 +27,10 @@ Private Sub CommandButton1_Click()
     MsgBox "Demo"
 End Sub
 
+Private Sub CommandButton2_Click()
+    Debug.Print 1 / 0
+End Sub
+
 Private Sub UserForm_Initialize()
     Me.StartUpPosition = 0
     Me.Left = Application.Left + Application.Width / 2 - Me.Width / 2

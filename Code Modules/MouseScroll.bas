@@ -209,7 +209,6 @@ Private m_passScrollToParentAtMargins As Boolean
 Public Function HookMouseToForm(hookedForm As MSForms.UserForm _
     , Optional ByVal passScrollToParentAtMargins As Boolean = True _
 ) As Boolean
-    'Exit Function
     If hookedForm Is Nothing Then Exit Function
     '
     Dim isHookSuccessful As Boolean
@@ -221,6 +220,9 @@ Public Function HookMouseToForm(hookedForm As MSForms.UserForm _
     #End If
     isHookSuccessful = (m_hHookMouse <> 0)
     If isHookSuccessful Then
+        On Error Resume Next
+        CallByName Application, "EnableCancelKey", VbLet, 0
+        On Error GoTo 0
         m_passScrollToParentAtMargins = passScrollToParentAtMargins
         Set m_mouseHookedForm = hookedForm
         Call InitControls
@@ -278,11 +280,11 @@ End Sub
 '*******************************************************************************
 Private Sub TerminateControls()
     If Not m_controls Is Nothing Then
-        Dim Ctrl As MouseOverControl
+        Dim ctrl As MouseOverControl
         '
-        For Each Ctrl In m_controls
-            Ctrl.TerminateReferences
-        Next Ctrl
+        For Each ctrl In m_controls
+            ctrl.TerminateReferences
+        Next ctrl
         Set m_controls = Nothing
     End If
 End Sub
@@ -290,8 +292,8 @@ End Sub
 '*******************************************************************************
 'Called by MouseMove capable controls (MouseOverControl) stored in m_controls
 '*******************************************************************************
-Public Sub SetHoveredControl(Ctrl As Object)
-    Set m_lastHoveredControl = Ctrl
+Public Sub SetHoveredControl(ctrl As Object)
+    Set m_lastHoveredControl = ctrl
 End Sub
 
 '*******************************************************************************
@@ -442,18 +444,18 @@ End Function
 '*******************************************************************************
 'Vertically scroll a control or the hooked Form itself
 '*******************************************************************************
-Private Sub ScrollY(Ctrl As Object, scrollAmount As SCROLL_AMOUNT)
+Private Sub ScrollY(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
     Const scrollPointsPerLine As Single = 6
-    Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(Ctrl)
+    Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(ctrl)
     '
     Select Case ctrlType
         Case ctNone
             Exit Sub
         Case ctCombo, ctList
-            Call ListScrollY(Ctrl, scrollAmount, ctrlType)
+            Call ListScrollY(ctrl, scrollAmount, ctrlType)
         Case ctFrame, ctPage, ctMulti, ctForm
             If ctrlType = ctMulti Then
-                Set Ctrl = Ctrl.SelectedItem
+                Set ctrl = ctrl.SelectedItem
                 ctrlType = ctPage
             End If
             '
@@ -463,7 +465,7 @@ Private Sub ScrollY(Ctrl As Object, scrollAmount As SCROLL_AMOUNT)
             '
             'Store the Top position of the scroll. Can throw - must guard
             On Error Resume Next
-            lastScrollTop = Ctrl.ScrollTop
+            lastScrollTop = ctrl.ScrollTop
             If Err.Number <> 0 Then
                 Err.Clear
                 Exit Sub
@@ -473,47 +475,47 @@ Private Sub ScrollY(Ctrl As Object, scrollAmount As SCROLL_AMOUNT)
             'Compute the new Top position
             newScrollTop = lastScrollTop _
                 - scrollAmount.lines * scrollPointsPerLine _
-                - scrollAmount.pages * Ctrl.InsideHeight
+                - scrollAmount.pages * ctrl.InsideHeight
             '
             'Clamp the new scroll value
-            maxScroll = Ctrl.ScrollHeight - Ctrl.InsideHeight
+            maxScroll = ctrl.ScrollHeight - ctrl.InsideHeight
             If newScrollTop > maxScroll Then newScrollTop = maxScroll
             If newScrollTop < 0 Then newScrollTop = 0
             '
             'Apply new scroll if needed
-            If Ctrl.ScrollTop <> newScrollTop Then
-                Ctrl.ScrollTop = newScrollTop
-                If ctrlType = ctForm Then Ctrl.Repaint
+            If ctrl.ScrollTop <> newScrollTop Then
+                ctrl.ScrollTop = newScrollTop
+                If ctrlType = ctForm Then ctrl.Repaint
             End If
             '
             If m_passScrollToParentAtMargins Then
                 'If scroll hasn't changed pass scroll to parent control
-                If Ctrl.ScrollTop = lastScrollTop And ctrlType <> ctForm Then
-                    If ctrlType = ctPage Then Set Ctrl = Ctrl.Parent 'Multi
-                    Call ScrollY(Ctrl.Parent, scrollAmount)
+                If ctrl.ScrollTop = lastScrollTop And ctrlType <> ctForm Then
+                    If ctrlType = ctPage Then Set ctrl = ctrl.Parent 'Multi
+                    Call ScrollY(ctrl.Parent, scrollAmount)
                 End If
             End If
         Case ctText
-            Call TBoxScrollY(Ctrl, scrollAmount)
+            Call TBoxScrollY(ctrl, scrollAmount)
         Case Else
             'Control is not scrollable. Pass scroll to parent
             Dim parentCtrlType As CONTROL_TYPE
             '
             On Error Resume Next 'Necessary during Form Init
-            parentCtrlType = GetControlType(Ctrl.Parent)
+            parentCtrlType = GetControlType(ctrl.Parent)
             On Error GoTo 0
-            If parentCtrlType <> ctNone Then ScrollY Ctrl.Parent, scrollAmount
+            If parentCtrlType <> ctNone Then ScrollY ctrl.Parent, scrollAmount
     End Select
 End Sub
 
 '*******************************************************************************
 'Vertically scroll a ComboBox or a ListBox control
 '*******************************************************************************
-Private Sub ListScrollY(Ctrl As Object _
+Private Sub ListScrollY(ctrl As Object _
                       , scrollAmount As SCROLL_AMOUNT _
                       , ctrlType As CONTROL_TYPE _
 )
-    Dim lastTopIndex As Long: lastTopIndex = Ctrl.TopIndex
+    Dim lastTopIndex As Long: lastTopIndex = ctrl.TopIndex
     Dim newTopIndex As Long
     '
     If scrollAmount.lines <> 0 Then
@@ -522,11 +524,11 @@ Private Sub ListScrollY(Ctrl As Object _
         Dim linesPerPage As Long
         '
         If ctrlType = ctCombo Then
-            linesPerPage = Ctrl.ListRows
+            linesPerPage = ctrl.ListRows
         Else
-            Ctrl.TopIndex = Ctrl.ListCount - 1
-            linesPerPage = VBA.Int(Ctrl.ListCount - Ctrl.TopIndex)
-            Ctrl.TopIndex = lastTopIndex
+            ctrl.TopIndex = ctrl.ListCount - 1
+            linesPerPage = VBA.Int(ctrl.ListCount - ctrl.TopIndex)
+            ctrl.TopIndex = lastTopIndex
         End If
         newTopIndex = lastTopIndex - scrollAmount.pages * linesPerPage
     End If
@@ -534,22 +536,22 @@ Private Sub ListScrollY(Ctrl As Object _
     'Clamp the new scroll top
     If newTopIndex < 0 Then
         newTopIndex = 0
-    ElseIf newTopIndex >= Ctrl.ListCount Then
-        newTopIndex = Ctrl.ListCount - 1
+    ElseIf newTopIndex >= ctrl.ListCount Then
+        newTopIndex = ctrl.ListCount - 1
     End If
     '
     On Error Resume Next 'could fail for undropped ComboBox
-    If lastTopIndex <> newTopIndex Then Ctrl.TopIndex = newTopIndex
+    If lastTopIndex <> newTopIndex Then ctrl.TopIndex = newTopIndex
     If Err.Number <> 0 Then
         Err.Clear
-        Call ScrollY(Ctrl.Parent, scrollAmount)
+        Call ScrollY(ctrl.Parent, scrollAmount)
         Exit Sub
     End If
     On Error GoTo 0
     '
     If m_passScrollToParentAtMargins Then
-        If Ctrl.TopIndex = lastTopIndex Then
-            Call ScrollY(Ctrl.Parent, scrollAmount)
+        If ctrl.TopIndex = lastTopIndex Then
+            Call ScrollY(ctrl.Parent, scrollAmount)
         End If
     End If
 End Sub
@@ -676,16 +678,16 @@ End Function
 'Code is very similar to the ScrollY method with main difference being that
 '   all values are relative to the Left instead of the Top side
 '*******************************************************************************
-Private Sub ScrollX(Ctrl As Object, scrollAmount As SCROLL_AMOUNT)
+Private Sub ScrollX(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
     Const scrollPointsPerColumn As Single = 15
-    Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(Ctrl)
+    Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(ctrl)
     '
     Select Case ctrlType
         Case ctNone
             Exit Sub
         Case ctFrame, ctPage, ctMulti, ctForm
             If ctrlType = ctMulti Then
-                Set Ctrl = Ctrl.SelectedItem
+                Set ctrl = ctrl.SelectedItem
                 ctrlType = ctPage
             End If
             '
@@ -695,7 +697,7 @@ Private Sub ScrollX(Ctrl As Object, scrollAmount As SCROLL_AMOUNT)
             '
             'Store the Left position of the scroll. Can throw - must guard
             On Error Resume Next
-            lastScrollLeft = Ctrl.ScrollLeft
+            lastScrollLeft = ctrl.ScrollLeft
             If Err.Number <> 0 Then
                 Err.Clear
                 Exit Sub
@@ -705,24 +707,24 @@ Private Sub ScrollX(Ctrl As Object, scrollAmount As SCROLL_AMOUNT)
             'Compute the new Left position
             newScrollLeft = lastScrollLeft _
                 - scrollAmount.lines * scrollPointsPerColumn _
-                - scrollAmount.pages * Ctrl.InsideWidth
+                - scrollAmount.pages * ctrl.InsideWidth
             '
             'Clamp the new scroll value
-            maxScroll = Ctrl.ScrollWidth - Ctrl.InsideWidth
+            maxScroll = ctrl.ScrollWidth - ctrl.InsideWidth
             If newScrollLeft > maxScroll Then newScrollLeft = maxScroll
             If newScrollLeft < 0 Then newScrollLeft = 0
             '
             'Apply new scroll if needed
-            If Ctrl.ScrollLeft <> newScrollLeft Then
-                Ctrl.ScrollLeft = newScrollLeft
-                If ctrlType = ctForm Then Ctrl.Repaint
+            If ctrl.ScrollLeft <> newScrollLeft Then
+                ctrl.ScrollLeft = newScrollLeft
+                If ctrlType = ctForm Then ctrl.Repaint
             End If
             '
             'If scroll hasn't changed pass scroll to parent control
             If m_passScrollToParentAtMargins Then
-                If Ctrl.ScrollLeft = lastScrollLeft And ctrlType <> ctForm Then
-                    If ctrlType = ctPage Then Set Ctrl = Ctrl.Parent 'Multi
-                    ScrollX Ctrl.Parent, scrollAmount
+                If ctrl.ScrollLeft = lastScrollLeft And ctrlType <> ctForm Then
+                    If ctrlType = ctPage Then Set ctrl = ctrl.Parent 'Multi
+                    ScrollX ctrl.Parent, scrollAmount
                 End If
             End If
         Case Else
@@ -730,9 +732,9 @@ Private Sub ScrollX(Ctrl As Object, scrollAmount As SCROLL_AMOUNT)
             Dim parentCtrlType As CONTROL_TYPE
             '
             On Error Resume Next 'Necessary during Form Init
-            parentCtrlType = GetControlType(Ctrl.Parent)
+            parentCtrlType = GetControlType(ctrl.Parent)
             On Error GoTo 0
-            If parentCtrlType <> ctNone Then ScrollX Ctrl.Parent, scrollAmount
+            If parentCtrlType <> ctNone Then ScrollX ctrl.Parent, scrollAmount
     End Select
 End Sub
 
