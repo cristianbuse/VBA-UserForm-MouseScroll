@@ -75,7 +75,7 @@ Option Private Module
         Private Declare Function CallNextHookEx Lib "user32" (ByVal hHook As Long, ByVal ncode As Long, ByVal wParam As Long, lParam As Any) As Long
         Private Declare Function GetCurrentThreadId Lib "kernel32" () As Long
         Private Declare Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
-        Private Declare PtrSafe Function GetActiveWindow Lib "user32" () As Long
+        Private Declare Function GetActiveWindow Lib "user32" () As Long
         Private Declare Function GetWindow Lib "user32" (ByVal hwnd As Long, ByVal wCmd As Long) As Long
         Private Declare Function GetWindowText Lib "user32" Alias "GetWindowTextA" (ByVal hwnd As Long, ByVal lpString As String, ByVal cch As Long) As Long
         Private Declare Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" (ByVal hwnd As Long) As Long
