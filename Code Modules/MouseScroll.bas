@@ -4,6 +4,7 @@ Attribute VB_Name = "MouseScroll"
 ''---------------------------------
 '' Copyright (C) 2019 VBA Mouse Scroll project contributors
 '' Initial Author: Cristian Buse
+'' https://github.com/cristianbuse/VBA-UserForm-MouseScroll
 ''---------------------------------
 '' This program is free software: you can redistribute it and/or modify
 '' it under the terms of the GNU General Public License as published by
@@ -68,6 +69,7 @@ Option Private Module
         Private Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IsWindowEnabled Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As LongPtr) As Long
+        Private Declare PtrSafe Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As LongPtr, ByVal wMsg As Long, ByVal wParam As LongPtr, ByVal lParam As LongPtr) As Long
         Private Declare PtrSafe Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As LongPtr, ByVal hmod As LongPtr, ByVal dwThreadId As Long) As LongPtr
         Private Declare PtrSafe Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
         Private Declare PtrSafe Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As LongPtr) As Long
@@ -82,6 +84,7 @@ Option Private Module
         Private Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function IsWindowEnabled Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As Long) As Long
+        Private Declare Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As Long, ByVal wMsg As Long, ByVal wParam As Long, ByVal lParam As Long) As Long
         Private Declare Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As Long, ByVal hmod As Long, ByVal dwThreadId As Long) As Long
         Private Declare Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
         Private Declare Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As Long) As Long
@@ -685,6 +688,8 @@ Private Sub ScrollX(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
     Select Case ctrlType
         Case ctNone
             Exit Sub
+        Case ctList
+            Call ListScrollX(ctrl, scrollAmount)
         Case ctFrame, ctPage, ctMulti, ctForm
             If ctrlType = ctMulti Then
                 Set ctrl = ctrl.SelectedItem
@@ -736,6 +741,31 @@ Private Sub ScrollX(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
             On Error GoTo 0
             If parentCtrlType <> ctNone Then ScrollX ctrl.Parent, scrollAmount
     End Select
+End Sub
+
+'*******************************************************************************
+'Horizontally scroll a ListBox control
+'*******************************************************************************
+Private Sub ListScrollX(lbox As MSForms.Control, scrollAmount As SCROLL_AMOUNT)
+    Const WM_KEYDOWN As Long = &H100
+    Const VK_LEFT = &H25
+    Const VK_RIGHT = &H27
+    Const colsPerPage As Long = 15
+    '
+    Dim msgCount As Long
+    '
+    msgCount = scrollAmount.lines + scrollAmount.pages * colsPerPage
+    lbox.SetFocus
+    If msgCount > 0 Then
+        'A single left key will considerably move the scroll bar
+        PostMessage lbox.[_GethWnd], WM_KEYDOWN, VK_LEFT, 0
+    Else
+        Dim i As Long
+        '
+        For i = 1 To Math.Abs(msgCount)
+            PostMessage lbox.[_GethWnd], WM_KEYDOWN, VK_RIGHT, 0
+        Next i
+    End If
 End Sub
 
 '*******************************************************************************
