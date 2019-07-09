@@ -12,6 +12,7 @@ Attribute VB_Exposed = False
 ''---------------------------------
 '' Copyright (C) 2019 VBA Mouse Scroll project contributors
 '' Initial Author: Cristian Buse
+'' https://github.com/cristianbuse/VBA-UserForm-MouseScroll
 ''---------------------------------
 '' This program is free software: you can redistribute it and/or modify
 '' it under the terms of the GNU General Public License as published by

@@ -217,7 +217,8 @@ Public Function HookMouseToForm(hookedForm As MSForms.UserForm _
     Dim isHookSuccessful As Boolean
     '
     Call UnHookMouse 'Clean previous hook
-    #If Not Mac Then
+    #If Mac Then
+    #Else
         m_hHookMouse = SetWindowsHookEx( _
             WH_MOUSE, AddressOf MouseProc, 0, GetCurrentThreadId())
     #End If
@@ -242,7 +243,8 @@ End Function
 '*******************************************************************************
 Public Sub UnHookMouse()
     If m_hHookMouse <> 0 Then
-        #If Not Mac Then
+        #If Mac Then
+        #Else
             UnhookWindowsHookEx m_hHookMouse
         #End If
         m_hHookMouse = 0
@@ -302,7 +304,8 @@ End Sub
 '*******************************************************************************
 'Callback hook function - monitors mouse messages
 '*******************************************************************************
-#If Not Mac Then
+#If Mac Then
+#Else
 #If VBA7 Then
 Private Function MouseProc(ByVal ncode As Long _
                          , ByVal wParam As Long _
@@ -438,7 +441,8 @@ End Function
 Private Function GetUserScrollLines() As Long
     Dim result As Long: result = 3 'default
     '
-    #If Not Mac Then
+    #If Mac Then
+    #Else
         SystemParametersInfo SPI_GETWHEELSCROLLLINES, 0, result, 0
     #End If
     GetUserScrollLines = result
@@ -807,7 +811,8 @@ Private Function GetFormHandle(objForm As MSForms.UserForm) As LongPtr
 #Else
 Private Function GetFormHandle(objForm As MSForms.UserForm) As Long
 #End If
-    #If Not Mac Then
+    #If Mac Then
+    #Else
         IUnknown_GetWindow objForm, VBA.VarPtr(GetFormHandle)
     #End If
 End Function
@@ -821,7 +826,8 @@ Private Function GetOwnerHandle(ByVal hwnd As LongPtr) As LongPtr
 Private Function GetOwnerHandle(ByVal hwnd As Long) As Long
 #End If
     Const GW_OWNER As Long = 4
-    #If Not Mac Then
+    #If Mac Then
+    #Else
         GetOwnerHandle = GetWindow(hwnd, GW_OWNER)
     #End If
 End Function
@@ -873,6 +879,9 @@ End Function
 'Checks if the ActiveWindow is a VBE Window
 '*******************************************************************************
 Private Function IsVBEActive() As Boolean
+    #If Mac Then
+    #Else
     IsVBEActive = VBA.InStr(1, GetWindowCaption(GetActiveWindow()) _
         , "Microsoft Visual Basic", vbTextCompare) <> 0
+    #End If
 End Function
