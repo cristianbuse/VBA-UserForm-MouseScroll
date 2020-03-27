@@ -26,6 +26,7 @@ End Sub
 ```
 
 ## Notes
+* Hold Shift for Horizontal Scroll and Ctrl for Zoom
 * The Mouse Hook will not work with Modeless Forms (Modal only)
 * No need to call the Unhook method. It will be called automatically when the Form is inactive
 * If you call a second Modal Form make sure to Hook back the first one when done:
