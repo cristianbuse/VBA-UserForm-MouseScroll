@@ -353,8 +353,7 @@ Private Function MouseProc(ByVal ncode As Long _
                     Case saScrollX
                         Call ScrollX(m_lastHoveredControl, scrollAmount)
                     Case saZoom
-                        'Implement a Zoom function and call it from here
-                        'Zoom can have values between 10 and 400
+                        Call Zoom(m_lastHoveredControl, scrollAmount)
                 End Select
                 '
                 MouseProc = -1
@@ -770,6 +769,59 @@ Private Sub ListScrollX(lbox As MSForms.Control, scrollAmount As SCROLL_AMOUNT)
             PostMessage lbox.[_GethWnd], WM_KEYDOWN, VK_RIGHT, 0
         Next i
     End If
+End Sub
+
+'*******************************************************************************
+'Zooms controls using mouse scroll
+'*******************************************************************************
+Private Sub Zoom(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
+    Const minZoom As Integer = 10
+    Const maxZoom As Integer = 400
+    Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(ctrl)
+    '
+    Select Case ctrlType
+        Case ctNone
+            Exit Sub
+        Case ctFrame, ctPage, ctMulti, ctForm
+            If ctrlType = ctMulti Then
+                Set ctrl = ctrl.SelectedItem
+                ctrlType = ctPage
+            End If
+            '
+            Dim lastZoom As Single
+            Dim newZoom As Single
+            '
+            lastZoom = ctrl.Zoom
+            '
+            'Compute the new zoom
+            newZoom = lastZoom + scrollAmount.lines * 5 + scrollAmount.pages * 25
+            '
+            'Clamp the new zoom value
+            If newZoom > maxZoom Then newZoom = maxZoom
+            If newZoom < minZoom Then newZoom = minZoom
+            '
+            'Apply new zoom if needed
+            If lastZoom <> newZoom Then
+                ctrl.Zoom = newZoom
+                If ctrlType = ctForm Then ctrl.Repaint
+            End If
+            '
+            'If zoom hasn't changed pass zoom to parent control
+            If m_passScrollToParentAtMargins Then
+                If ctrl.Zoom = lastZoom And ctrlType <> ctForm Then
+                    If ctrlType = ctPage Then Set ctrl = ctrl.Parent 'Multi
+                    Zoom ctrl.Parent, scrollAmount
+                End If
+            End If
+        Case Else
+            'Control cannot be zoomed. Pass zoom to parent
+            Dim parentCtrlType As CONTROL_TYPE
+            '
+            On Error Resume Next 'Necessary during Form Init
+            parentCtrlType = GetControlType(ctrl.Parent)
+            On Error GoTo 0
+            If parentCtrlType <> ctNone Then Zoom ctrl.Parent, scrollAmount
+    End Select
 End Sub
 
 '*******************************************************************************
