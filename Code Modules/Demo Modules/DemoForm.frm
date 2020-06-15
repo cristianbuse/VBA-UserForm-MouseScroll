@@ -16,7 +16,7 @@ Attribute VB_Exposed = False
 Option Explicit
 
 Private Sub btnClose_Click()
-    Unload Me
+    Me.Hide
 End Sub
 
 Private Sub CheckBox1_Click()
@@ -27,6 +27,10 @@ Private Sub CommandButton1_Click()
     MsgBox "Demo"
 End Sub
 
+'Note that the error will close the Form in Microsoft Word because
+'   Application.EnableCancelKey is set to wdCancelDisabled and the
+'   Run-time error Dialog (End/Debug) is not shown
+'In Excel the error will display the Run-time error Dialog (End/Debug)
 Private Sub CommandButton2_Click()
     Debug.Print 1 / 0
 End Sub

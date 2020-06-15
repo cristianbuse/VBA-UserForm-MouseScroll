@@ -180,6 +180,9 @@ Private m_controls As Collection
 'The last control that was hovered (could be the UserForm itself)
 Private m_lastHoveredControl As Object
 
+'The previous state of Application.EnableCancelKey (if available)
+Private m_enableCancelKey As Long
+
 'The Scrollable Control Types/Categories
 Private Enum CONTROL_TYPE
     ctNone = 0
@@ -225,6 +228,7 @@ Public Function HookMouseToForm(hookedForm As MSForms.UserForm _
     isHookSuccessful = (m_hHookMouse <> 0)
     If isHookSuccessful Then
         On Error Resume Next
+        m_enableCancelKey = CallByName(Application, "EnableCancelKey", VbGet)
         CallByName Application, "EnableCancelKey", VbLet, 0
         On Error GoTo 0
         m_passScrollToParentAtMargins = passScrollToParentAtMargins
@@ -247,6 +251,9 @@ Public Sub UnHookMouse()
         #Else
             UnhookWindowsHookEx m_hHookMouse
         #End If
+        On Error Resume Next
+        CallByName Application, "EnableCancelKey", VbLet, m_enableCancelKey
+        On Error GoTo 0
         m_hHookMouse = 0
         Set m_mouseHookedForm = Nothing
         Call TerminateControls

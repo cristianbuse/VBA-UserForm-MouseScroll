@@ -2,5 +2,7 @@ Attribute VB_Name = "DEMO"
 Option Explicit
 
 Sub ShowDemoForm()
-    DemoForm.Show vbModal
+    With New DemoForm
+        .Show vbModal
+    End With
 End Sub
