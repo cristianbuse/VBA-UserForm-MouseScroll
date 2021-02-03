@@ -297,14 +297,7 @@ End Sub
 'Terminate Controls collection. Remove references first to avoid memory leaks
 '*******************************************************************************
 Private Sub TerminateControls()
-    If Not m_controls Is Nothing Then
-        Dim ctrl As MouseOverControl
-        '
-        For Each ctrl In m_controls
-            ctrl.TerminateReferences
-        Next ctrl
-        Set m_controls = Nothing
-    End If
+    Set m_controls = Nothing
 End Sub
 
 '*******************************************************************************

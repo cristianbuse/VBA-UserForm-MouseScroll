@@ -115,22 +115,6 @@ Public Sub InitFromControl(ByVal objControl As Object)
     End Select
 End Sub
 
-Public Sub TerminateReferences()
-    Set m_CheckBox = Nothing
-    Set m_ComboBox = Nothing
-    Set m_CommandButton = Nothing
-    Set m_Frame = Nothing
-    Set m_Image = Nothing
-    Set m_Label = Nothing
-    Set m_ListBox = Nothing
-    Set m_MultiPage = Nothing
-    Set m_OptionButton = Nothing
-    Set m_TabStrip = Nothing
-    Set m_TextBox = Nothing
-    Set m_ToggleButton = Nothing
-    Set m_UserForm = Nothing
-End Sub
-
 'MouseMove Events
 Private Sub m_CheckBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
     SetHoveredControl m_CheckBox
@@ -185,4 +169,20 @@ End Sub
 Private Sub m_MultiPage_Scroll(ByVal Index As Long, ByVal ActionX As MSForms.fmScrollAction, ByVal ActionY As MSForms.fmScrollAction, ByVal RequestDx As Single, ByVal RequestDy As Single, ByVal ActualDx As MSForms.ReturnSingle, ByVal ActualDy As MSForms.ReturnSingle)
     If ActionY = fmScrollActionFocusRequest Or ActionY = fmScrollActionControlRequest Then ActualDy = 0
     If ActionX = fmScrollActionFocusRequest Or ActionX = fmScrollActionControlRequest Then ActualDx = 0
+End Sub
+
+Private Sub Class_Terminate()
+    Set m_CheckBox = Nothing
+    Set m_ComboBox = Nothing
+    Set m_CommandButton = Nothing
+    Set m_Frame = Nothing
+    Set m_Image = Nothing
+    Set m_Label = Nothing
+    Set m_ListBox = Nothing
+    Set m_MultiPage = Nothing
+    Set m_OptionButton = Nothing
+    Set m_TabStrip = Nothing
+    Set m_TextBox = Nothing
+    Set m_ToggleButton = Nothing
+    Set m_UserForm = Nothing
 End Sub
