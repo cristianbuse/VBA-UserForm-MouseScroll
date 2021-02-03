@@ -81,53 +81,53 @@ Attribute m_ToggleButton.VB_VarHelpID = -1
 Private WithEvents m_UserForm As MSForms.UserForm
 Attribute m_UserForm.VB_VarHelpID = -1
 
-Public Function CreateFromControl(ByVal frmControl As MSForms.Control) As MouseOverControl
+Public Function CreateFromControl(ByVal formControl As MSForms.Control) As MouseOverControl
     Dim moControl As MouseOverControl
     Set moControl = New MouseOverControl
-    moControl.InitFromControl frmControl
+    moControl.InitFromControl formControl
     Set CreateFromControl = moControl
 End Function
 
-Public Function CreateFromForm(ByVal frm As MSForms.UserForm) As MouseOverControl
+Public Function CreateFromForm(ByVal uForm As MSForms.UserForm) As MouseOverControl
     Dim moControl As MouseOverControl
     Set moControl = New MouseOverControl
-    moControl.InitFromForm frm
+    moControl.InitFromForm uForm
     Set CreateFromForm = moControl
 End Function
 
-Public Sub InitFromControl(ByVal frmControl As MSForms.Control)
-    Select Case TypeName(frmControl)
+Public Sub InitFromControl(ByVal formControl As MSForms.Control)
+    Select Case TypeName(formControl)
         Case "CheckBox"
-            Set m_CheckBox = frmControl
+            Set m_CheckBox = formControl
         Case "ComboBox"
-            Set m_ComboBox = frmControl
+            Set m_ComboBox = formControl
         Case "CommandButton"
-            Set m_CommandButton = frmControl
+            Set m_CommandButton = formControl
         Case "Frame"
-            Set m_Frame = frmControl
+            Set m_Frame = formControl
         Case "Image"
-            Set m_Image = frmControl
+            Set m_Image = formControl
         Case "Label"
-            Set m_Label = frmControl
+            Set m_Label = formControl
         Case "ListBox"
-            Set m_ListBox = frmControl
+            Set m_ListBox = formControl
         Case "MultiPage"
-            Set m_MultiPage = frmControl
+            Set m_MultiPage = formControl
         Case "OptionButton"
-            Set m_OptionButton = frmControl
+            Set m_OptionButton = formControl
         Case "TabStrip"
-            Set m_TabStrip = frmControl
+            Set m_TabStrip = formControl
         Case "TextBox"
-            Set m_TextBox = frmControl
+            Set m_TextBox = formControl
         Case "ToggleButton"
-            Set m_ToggleButton = frmControl
+            Set m_ToggleButton = formControl
         Case Else
             'Ignore
     End Select
 End Sub
 
-Public Sub InitFromForm(ByVal frm As MSForms.UserForm)
-    Set m_UserForm = frm
+Public Sub InitFromForm(ByVal uForm As MSForms.UserForm)
+    Set m_UserForm = uForm
 End Sub
 
 'MouseMove Events
