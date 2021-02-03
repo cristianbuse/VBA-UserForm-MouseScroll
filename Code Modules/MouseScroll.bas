@@ -218,7 +218,7 @@ Private m_passScrollToParentAtMargins As Boolean
 'The MouseProc callback will manipulate the hookedForm by calling methods like
 '   ScrollY and ScrollX
 '*******************************************************************************
-Public Function HookMouseToForm(hookedForm As MSForms.UserForm _
+Public Function HookMouseToForm(ByVal hookedForm As MSForms.UserForm _
     , Optional ByVal passScrollToParentAtMargins As Boolean = True _
 ) As Boolean
     If hookedForm Is Nothing Then Exit Function
@@ -277,20 +277,13 @@ Private Sub InitControls()
     If Not m_controls Is Nothing Then TerminateControls
     If m_hHookMouse = 0 Then Exit Sub
     '
-    Dim moCtrl As MouseOverControl
     Dim frmCtrl As MSForms.Control
     '
     Set m_controls = New Collection
-    'Add type MSForms.Control
     For Each frmCtrl In m_mouseHookedForm.Controls
-        Set moCtrl = New MouseOverControl
-        moCtrl.InitFromControl frmCtrl
-        m_controls.Add moCtrl
+        m_controls.Add MouseOverControl.CreateFromControl(frmCtrl)
     Next frmCtrl
-    'Add type MSForms.UserForm
-    Set moCtrl = New MouseOverControl
-    moCtrl.InitFromControl m_mouseHookedForm
-    m_controls.Add moCtrl
+    m_controls.Add MouseOverControl.CreateFromForm(m_mouseHookedForm)
 End Sub
 
 '*******************************************************************************
@@ -303,7 +296,7 @@ End Sub
 '*******************************************************************************
 'Called by MouseMove capable controls (MouseOverControl) stored in m_controls
 '*******************************************************************************
-Public Sub SetHoveredControl(ctrl As Object)
+Public Sub SetHoveredControl(ByVal ctrl As Object)
     Set m_lastHoveredControl = ctrl
 End Sub
 
