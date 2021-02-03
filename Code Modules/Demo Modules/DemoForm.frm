@@ -35,6 +35,13 @@ Private Sub CommandButton2_Click()
     Debug.Print 1 / 0
 End Sub
 
+Private Sub CommandButton3_Click()
+    With New DemoForm
+        .Top = Me.Top + 30
+        .Show vbModal
+    End With
+End Sub
+
 Private Sub UserForm_Initialize()
     Me.StartUpPosition = 0
     Me.Left = Application.Left + Application.Width / 2 - Me.Width / 2
