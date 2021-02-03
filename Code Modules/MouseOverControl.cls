@@ -82,17 +82,17 @@ Private WithEvents m_UserForm As MSForms.UserForm
 Attribute m_UserForm.VB_VarHelpID = -1
 
 Public Function CreateFromControl(ByVal frmControl As MSForms.Control) As MouseOverControl
-    Dim newControl As MouseOverControl
-    Set newControl = New MouseOverControl
-    newControl.InitFromControl frmControl
-    Set CreateFromControl = newControl
+    Dim moControl As MouseOverControl
+    Set moControl = New MouseOverControl
+    moControl.InitFromControl frmControl
+    Set CreateFromControl = moControl
 End Function
 
 Public Function CreateFromForm(ByVal frm As MSForms.UserForm) As MouseOverControl
-    Dim newControl As MouseOverControl
-    Set newControl = New MouseOverControl
-    newControl.CreateFromForm frm
-    Set CreateFromForm = newControl
+    Dim moControl As MouseOverControl
+    Set moControl = New MouseOverControl
+    moControl.InitFromForm frm
+    Set CreateFromForm = moControl
 End Function
 
 Public Sub InitFromControl(ByVal frmControl As MSForms.Control)
