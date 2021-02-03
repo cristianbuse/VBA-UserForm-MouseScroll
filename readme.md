@@ -2,6 +2,8 @@
 
 MouseScroll is a VBA Project that allows Mouse Wheel Scrolling on MSForms Controls and Userforms but can also be extended for clicks, double-clicks and movement inputs.
 
+Multiple forms are tracked simultaneously. Just call the ```EnableMouseScroll``` for each form.
+
 ## Installation
 
 Just import the following 2 code modules in your VBA Project:
@@ -12,7 +14,7 @@ Just import the following 2 code modules in your VBA Project:
 ## Usage
 In your Modal Userform use:
 ```vba
-HookMouseToForm Me
+EnableMouseScroll myUserForm
 ```
 For example you can use your Form's Initialize Event:
 ```vba
@@ -21,21 +23,15 @@ Private Sub UserForm_Initialize()
     Me.Left = Application.Left + Application.Width / 2 - Me.Width / 2
     Me.Top = Application.Top + Application.Height / 2 - Me.Height / 2
 
-    HookMouseToForm Me
+    EnableMouseScroll Me
 End Sub
 ```
 
 ## Notes
 * Hold Shift for Horizontal Scroll and Ctrl for Zoom
 * The Mouse Hook will not work with Modeless Forms (Modal only)
-* No need to call the Unhook method. It will be called automatically when the Form is inactive
-* If you call a second Modal Form make sure to Hook back the first one when done:
-```vba
-Private Sub ShowSecondForm_Click()
-    SecondForm.Show vbModal
-    MouseScroll.HookMouseToForm Me
-End Sub
-```
+* No need to call the ```DisableMouseScroll``` method. It will be called automatically when the Form's Window is destroyed
+* Multiple forms are now tracked simultaneously and the mouse is unhooked automatically only when no forms are being tracked
 * You can download the available Demo Workbook for a quick start
 
 ## License

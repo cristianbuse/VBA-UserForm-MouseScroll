@@ -28,8 +28,13 @@ Attribute VB_Name = "MouseScroll"
 ''
 ''==============================================================================
 '' Description:
+''    Allows forms and form controls to be scrolled using the mouse wheel.
+''    Simultaneoulsy tracks all forms that called the EnableMouseScroll method!
+''
 ''    Installs a Mouse Hook by calling SetWindowsHookEx API with ID WH_MOUSE = 7
 ''       and the address of the MouseProc callback function.
+''    The Mouse Hook is active as long as there is at least one form that
+''       previously enabled scrolling (i.e. called EnableMouseScroll method)
 ''    Another option would be to use ID WH_MOUSE_LL = 14 which would require a
 ''       LowLevelMouseProc callback but unlike the WH_MOUSE hook which is local
 ''       (hooked on the current thread only) the WH_MOUSE_LL hook is actually
@@ -44,12 +49,13 @@ Attribute VB_Name = "MouseScroll"
 ''    MouseProc hook works properly with MODAL UserForms only!
 ''    Modeless Forms will cause unhooking! This is done on purpose to prevent
 ''       crashes!
-''    No need to call the UnHookMouse() method. This is done automatically!
+''    No need to call DisableMouseScroll method. This is done automatically!
+''       However, in Ms Word is recommanded to call it from the form's terminate
+''       event (i.e. UserForm_Terminate)
 ''    Hold down SHIFT key when scrolling the mouse wheel, for Horizontal Scroll!
+''    Hold down CTRL key when scrolling the mouse wheel, for Zoom!
 '' Warning:
-''    If a UserForm is Active (using the .Show method) and it is hooked,
-''       do not double click it's design counterpart in the VBA IDE's Project
-''       Explorer in order to redesign! Close the form first to avoid crashes!
+''    Do not debug code while the hook is active to avoid crashes!
 '' Requires:
 ''    - MouseOverControl: Container that tracks MouseMove events
 ''==============================================================================
@@ -163,28 +169,28 @@ End Type
 
 'm_hHookMouse - Hook handle obtained from a previous call to SetWindowsHookEx
 '   - Used when calling UnhookWindowsHookEx in order to remove the hook
-'m_hWndForm - UserForm's Window Handle (used to track Form's Active state)
-'m_hWndOwner - UserForm Owner's Window Handle (used to track Form's Modal state)
+'m_hWndMainOwner - Main UserForm's Owner Handle (to track Modal state)
 '*******************************************************************************
 #If VBA7 Then
     Private m_hHookMouse As LongPtr
-    Private m_hWndForm As LongPtr
-    Private m_hWndOwner As LongPtr
+    Private m_hWndMainOwner As LongPtr
 #Else
     Private m_hHookMouse As Long
-    Private m_hWndForm As Long
-    Private m_hWndOwner As Long
+    Private m_hWndMainOwner As Long
 #End If
 '*******************************************************************************
 
-'The UserForm that will be manipulated while the hook is set
-Private m_mouseHookedForm As MSForms.UserForm
+'Window handles for all forms with scrolling enabled. Always instantiated
+Private m_hWndAllForms As New Collection
 
-'Collection of MouseOverControls to keep track of the last hovered control
-Private m_controls As Collection
+'Collection of sub-collections of MouseOverControls (one for each form)
+Private m_controls As New Collection
+
+'Keeps track of the passScrollAtMargins option for each form
+Private m_passScrollColl As New Collection
 
 'The last control that was hovered (could be the UserForm itself)
-Private m_lastHoveredControl As Object
+Private m_lastHoveredControl As MouseOverControl
 
 'The previous state of Application.EnableCancelKey (if available)
 Private m_enableCancelKey As Long
@@ -210,26 +216,46 @@ Private Enum SCROLL_ACTION
 End Enum
 
 'If the current hovered control cannot scroll anymore, then pass (or not) the
-'   scroll to the Parent Control/Form. Variable set in HookMouseToForm
+'   scroll to the Parent Control/Form. Variable set in SetHoveredControl()
 Private m_passScrollToParentAtMargins As Boolean
 
 '*******************************************************************************
-'Hooks Mouse messages to the MouseProc procedure
-'The MouseProc callback will manipulate the hookedForm by calling methods like
-'   ScrollY and ScrollX
+'Enables mouse wheel scroll for the specified UserForm
 '*******************************************************************************
-Public Function HookMouseToForm(ByVal hookedForm As MSForms.UserForm _
+Public Function EnableMouseScroll(ByVal uForm As MSForms.UserForm _
     , Optional ByVal passScrollToParentAtMargins As Boolean = True _
 ) As Boolean
-    If hookedForm Is Nothing Then Exit Function
+    If uForm Is Nothing Then Exit Function
+    If Not HookMouse Then Exit Function
+    '
+    AddForm uForm, passScrollToParentAtMargins
+    EnableMouseScroll = True
+End Function
+
+'*******************************************************************************
+'Disables mouse wheel scroll for a specific UserForm. Can be called, optionally,
+'   from a form's teminate event but is not needed
+'*******************************************************************************
+Public Sub DisableMouseScroll(ByVal uForm As MSForms.UserForm)
+    RemoveForm GetFormHandle(uForm)
+End Sub
+
+'*******************************************************************************
+'Hooks Mouse messages to the MouseProc procedure
+'The MouseProc callback will manipulate controls/forms by calling methods like
+'   ScrollY and ScrollX
+'*******************************************************************************
+Private Function HookMouse() As Boolean
+    If m_hHookMouse <> 0 Then
+        HookMouse = True
+        Exit Function
+    End If
     '
     Dim isHookSuccessful As Boolean
     '
-    Call UnHookMouse 'Clean previous hook
     #If Mac Then
     #Else
-        m_hHookMouse = SetWindowsHookEx( _
-            WH_MOUSE, AddressOf MouseProc, 0, GetCurrentThreadId())
+        m_hHookMouse = SetWindowsHookEx(WH_MOUSE, AddressOf MouseProc, 0, GetCurrentThreadId())
     #End If
     isHookSuccessful = (m_hHookMouse <> 0)
     If isHookSuccessful Then
@@ -237,21 +263,16 @@ Public Function HookMouseToForm(ByVal hookedForm As MSForms.UserForm _
         m_enableCancelKey = CallByName(Application, "EnableCancelKey", VbGet)
         CallByName Application, "EnableCancelKey", VbLet, 0
         On Error GoTo 0
-        m_passScrollToParentAtMargins = passScrollToParentAtMargins
-        Set m_mouseHookedForm = hookedForm
-        Call InitControls
-        m_hWndForm = GetFormHandle(hookedForm)
-        m_hWndOwner = GetOwnerHandle(m_hWndForm)
-        Debug.Print "Mouse hooked <form hWnd: " & m_hWndForm & "> " & Now
+        Debug.Print "Mouse hooked " & Now
     End If
     '
-    HookMouseToForm = isHookSuccessful
+    HookMouse = isHookSuccessful
 End Function
 
 '*******************************************************************************
-'UnHooks Mouse (if needed)
+'UnHooks Mouse
 '*******************************************************************************
-Public Sub UnHookMouse()
+Private Sub UnHookMouse()
     If m_hHookMouse <> 0 Then
         #If Mac Then
         #Else
@@ -261,43 +282,107 @@ Public Sub UnHookMouse()
         CallByName Application, "EnableCancelKey", VbLet, m_enableCancelKey
         On Error GoTo 0
         m_hHookMouse = 0
-        Set m_mouseHookedForm = Nothing
-        Call TerminateControls
-        m_hWndForm = 0
-        m_hWndOwner = 0
+        Set m_hWndAllForms = Nothing
+        Set m_controls = Nothing
+        Set m_passScrollColl = Nothing
+        Set m_lastHoveredControl = Nothing
         Debug.Print "Mouse unhooked " & Now
     End If
 End Sub
 
 '*******************************************************************************
-'Create a collection of controls capable of MouseMove events
+'Adds the form handle to m_hWndAllForms collection
+'Adds the passScrollAtMargins option to m_passScrollColl collection
+'Adds a sub-collection of MouseMove controls to m_controls collection
 '*******************************************************************************
-Private Sub InitControls()
-    'Redundant precautions
-    If Not m_controls Is Nothing Then TerminateControls
-    If m_hHookMouse = 0 Then Exit Sub
+Private Sub AddForm(ByVal uForm As MSForms.UserForm, ByVal passScrollAtMargins As Boolean)
+    #If VBA7 Then
+        Dim hWndForm As LongPtr
+    #Else
+        Dim hWndForm As Long
+    #End If
+    Dim key_ As String
+    '
+    hWndForm = GetFormHandle(uForm)
+    key_ = CStr(hWndForm)
+    '
+    If CollectionHasKey(m_hWndAllForms, key_) Then
+        m_controls.Remove key_
+        m_passScrollColl.Remove key_
+    Else
+        m_hWndAllForms.Add hWndForm, key_
+    End If
+    m_passScrollColl.Add passScrollAtMargins, key_
+    '
+    If m_controls.Count = 0 Then
+        'Keep track of the owner of the first form only
+        m_hWndMainOwner = GetOwnerHandle(hWndForm)
+    End If
+    '
+    Dim subControls As Collection
+    Set subControls = New Collection
+    m_controls.Add subControls, key_
     '
     Dim frmCtrl As MSForms.Control
     '
-    Set m_controls = New Collection
-    For Each frmCtrl In m_mouseHookedForm.Controls
-        m_controls.Add MouseOverControl.CreateFromControl(frmCtrl)
+    For Each frmCtrl In uForm.Controls
+        subControls.Add MouseOverControl.CreateFromControl(frmCtrl, hWndForm)
     Next frmCtrl
-    m_controls.Add MouseOverControl.CreateFromForm(m_mouseHookedForm)
+    subControls.Add MouseOverControl.CreateFromForm(uForm, hWndForm)
 End Sub
 
 '*******************************************************************************
-'Terminate Controls collection. Remove references first to avoid memory leaks
+'Removes a form (by window handle) from the internal collections
 '*******************************************************************************
-Private Sub TerminateControls()
-    Set m_controls = Nothing
+#If VBA7 Then
+Private Sub RemoveForm(ByVal hWndForm As LongPtr)
+#Else
+Private Sub RemoveForm(ByVal hWndForm As Long)
+#End If
+    If CollectionHasKey(m_hWndAllForms, hWndForm) Then
+        Dim key_ As String: key_ = CStr(hWndForm)
+        m_hWndAllForms.Remove key_
+        m_controls.Remove key_
+        m_passScrollColl.Remove key_
+    End If
+    If m_hWndAllForms.Count = 0 Then UnHookMouse
 End Sub
+
+'*******************************************************************************
+'Removes any form that has been destroyed
+'*******************************************************************************
+Private Sub RemoveDestroyedForms()
+    Dim v As Variant
+    '
+    For Each v In m_hWndAllForms
+        If Not CBool(IsWindow(v)) Then
+            RemoveForm v
+        End If
+    Next v
+End Sub
+
+'*******************************************************************************
+'Returns a boolean indicating if a Collection has a specific key
+'Parameters:
+'   - coll: a collection to check for key
+'   - key_: the key being searched for
+'Does not raise errors
+'*******************************************************************************
+Private Function CollectionHasKey(ByVal coll As Collection, ByVal key_ As String) As Boolean
+    On Error Resume Next
+    coll.Item key_
+    CollectionHasKey = (Err.Number = 0)
+    On Error GoTo 0
+End Function
 
 '*******************************************************************************
 'Called by MouseMove capable controls (MouseOverControl) stored in m_controls
 '*******************************************************************************
-Public Sub SetHoveredControl(ByVal ctrl As Object)
-    Set m_lastHoveredControl = ctrl
+Public Sub SetHoveredControl(ByVal moCtrl As MouseOverControl)
+    Set m_lastHoveredControl = moCtrl
+    On Error Resume Next
+    m_passScrollToParentAtMargins = m_passScrollColl(CStr(moCtrl.FormHandle))
+    On Error GoTo 0
 End Sub
 
 '*******************************************************************************
@@ -315,21 +400,19 @@ Private Function MouseProc(ByVal ncode As Long _
                          , ByRef lParam As MOUSEHOOKSTRUCTEX) As Long
 #End If
     'Unhook if a VBE window is active
-    If IsVBEActive Then UnHookMouse
+    If IsVBEActive Then GoTo Unhook
     '
-    Dim ignoreInput As Boolean
+    RemoveDestroyedForms
     '
-    'Unhook if Form Handle is lost
-    If m_hWndForm = 0 Then UnHookMouse
+    'Unhook if no form handles
+    If m_hWndAllForms.Count = 0 Then GoTo Unhook
     '
-    'Unhook if Form's Window is missing
-    If Not CBool(IsWindow(m_hWndForm)) Then UnHookMouse
+    'Unhook if the top Owner is active (Modeless Form)
+    If CBool(IsWindowEnabled(m_hWndMainOwner)) Then GoTo Unhook
     '
-    'Ignore input if Window is not Active
-    If Not CBool(IsWindowEnabled(m_hWndForm)) Then ignoreInput = True
-    '
-    'Unhook if Owner is active (Modeless Form)
-    If CBool(IsWindowEnabled(m_hWndOwner)) Then UnHookMouse
+    If m_lastHoveredControl Is Nothing Then GoTo NextHook
+    'Ignore input if Window matching last hovered control is not Active
+    If Not CBool(IsWindowEnabled(m_lastHoveredControl.FormHandle)) Then GoTo NextHook
     '
     'The nCode could either be negative, HC_ACTION or HC_NOREMOVE
     'HC_NOREMOVE is passed when the Application calls the PeekMessage function
@@ -337,45 +420,48 @@ Private Function MouseProc(ByVal ncode As Long _
     '   removed from the message queue
     'In case of negative or HC_NOREMOVE nCode the function will pass the message
     '   to the CallNextHookEx function and return it's value
-    If CBool(m_hHookMouse) And Not ignoreInput Then
-        If ncode = HC_ACTION Then
-            If wParam = WM_MOUSEWHEEL Or wParam = WM_MOUSEHWHEEL Then
-                Dim scrollAmount As SCROLL_AMOUNT
-                Dim scrollAction As SCROLL_ACTION
-                '
-                scrollAmount = GetScrollAmount(GetWheelDelta(lParam.mouseData))
-                scrollAction = GetScrollAction(yWheel:=(wParam = WM_MOUSEWHEEL))
-                '
-                Select Case scrollAction
-                    Case saScrollY
-                        Call ScrollY(m_lastHoveredControl, scrollAmount)
-                    Case saScrollX
-                        Call ScrollX(m_lastHoveredControl, scrollAmount)
-                    Case saZoom
-                        Call Zoom(m_lastHoveredControl, scrollAmount)
-                End Select
-                '
-                MouseProc = -1
-                Exit Function
-            Else
-                'Here you could implement logic for:
-                'WM_MOUSEMOVE
-                'WM_LBUTTONDOWN
-                'WM_LBUTTONUP
-                'WM_LBUTTONDBLCLK
-                'WM_RBUTTONDOWN
-                'WM_RBUTTONUP
-                'WM_RBUTTONDBLCLK
-                'WM_MBUTTONDOWN
-                'WM_MBUTTONUP
-                'WM_MBUTTONDBLCLK
-                '
-                'For now, just passing the message to (CallNextHookEx)
-            End If
+    If ncode = HC_ACTION Then
+        If wParam = WM_MOUSEWHEEL Or wParam = WM_MOUSEHWHEEL Then
+            Dim scrollAmount As SCROLL_AMOUNT
+            Dim scrollAction As SCROLL_ACTION
+            '
+            scrollAmount = GetScrollAmount(GetWheelDelta(lParam.mouseData))
+            scrollAction = GetScrollAction(yWheel:=(wParam = WM_MOUSEWHEEL))
+            '
+            Select Case scrollAction
+                Case saScrollY
+                    Call ScrollY(m_lastHoveredControl.GetControl, scrollAmount)
+                Case saScrollX
+                    Call ScrollX(m_lastHoveredControl.GetControl, scrollAmount)
+                Case saZoom
+                    Call Zoom(m_lastHoveredControl.GetControl, scrollAmount)
+            End Select
+            '
+            MouseProc = -1
+            Exit Function
+        Else
+            'Here you could implement logic for:
+            'WM_MOUSEMOVE
+            'WM_LBUTTONDOWN
+            'WM_LBUTTONUP
+            'WM_LBUTTONDBLCLK
+            'WM_RBUTTONDOWN
+            'WM_RBUTTONUP
+            'WM_RBUTTONDBLCLK
+            'WM_MBUTTONDOWN
+            'WM_MBUTTONUP
+            'WM_MBUTTONDBLCLK
+            '
+            'For now, just passing the message to (CallNextHookEx)
         End If
     End If
     '
+NextHook:
     MouseProc = CallNextHookEx(0, ncode, wParam, ByVal lParam)
+Exit Function
+Unhook:
+    UnHookMouse
+    GoTo NextHook
 End Function
 #End If
 
@@ -406,21 +492,21 @@ End Function
 'Get the wheel delta from mouseData Double Word's HiWord
 'The LoWord is undefined and reserved
 '*******************************************************************************
-Private Function GetWheelDelta(dwMouseData As Long) As Integer
+Private Function GetWheelDelta(ByVal dwMouseData As Long) As Integer
     GetWheelDelta = HiWord(dwMouseData)
 End Function
 
 '*******************************************************************************
 'Function to retrieve the High Word (16-bit) from a Double Word (32-bit)
 '*******************************************************************************
-Private Function HiWord(dWord As Long) As Integer
+Private Function HiWord(ByVal dWord As Long) As Integer
     HiWord = VBA.Int(dWord / &H10000)
 End Function
 
 '*******************************************************************************
 'Get the scroll amount (lines or pages) for a mouse wheel scroll value
 '*******************************************************************************
-Private Function GetScrollAmount(scrollValue As Integer) As SCROLL_AMOUNT
+Private Function GetScrollAmount(ByVal scrollValue As Integer) As SCROLL_AMOUNT
     Dim systemScrollLines As Long: systemScrollLines = GetUserScrollLines()
     Dim scrollAmount As SCROLL_AMOUNT
     '
@@ -449,7 +535,7 @@ End Function
 '*******************************************************************************
 'Vertically scroll a control or the hooked Form itself
 '*******************************************************************************
-Private Sub ScrollY(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
+Private Sub ScrollY(ByVal ctrl As Object, ByRef scrollAmount As SCROLL_AMOUNT)
     Const scrollPointsPerLine As Single = 6
     Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(ctrl)
     '
@@ -516,9 +602,9 @@ End Sub
 '*******************************************************************************
 'Vertically scroll a ComboBox or a ListBox control
 '*******************************************************************************
-Private Sub ListScrollY(ctrl As Object _
-                      , scrollAmount As SCROLL_AMOUNT _
-                      , ctrlType As CONTROL_TYPE _
+Private Sub ListScrollY(ByVal ctrl As Object _
+                      , ByRef scrollAmount As SCROLL_AMOUNT _
+                      , ByVal ctrlType As CONTROL_TYPE _
 )
     Dim lastTopIndex As Long: lastTopIndex = ctrl.TopIndex
     Dim newTopIndex As Long
@@ -564,7 +650,7 @@ End Sub
 '*******************************************************************************
 'Vertically scroll a TextBox control
 '*******************************************************************************
-Private Sub TBoxScrollY(tbox As MSForms.TextBox, scrollAmount As SCROLL_AMOUNT)
+Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox, ByRef scrollAmount As SCROLL_AMOUNT)
     If Not tbox.MultiLine Then
         Call ScrollY(tbox.Parent, scrollAmount)
         Exit Sub
@@ -629,7 +715,7 @@ End Sub
 '*******************************************************************************
 'Get the row height for a TextBox by using the AutoSize feature
 '*******************************************************************************
-Private Function GetTextBoxLineHeight(tbox As MSForms.TextBox) As Single
+Private Function GetTextBoxLineHeight(ByVal tbox As MSForms.TextBox) As Single
     tbox.SetFocus
     'Store Size and appearance
     Dim oldHeight As Single: oldHeight = tbox.Height
@@ -683,7 +769,7 @@ End Function
 'Code is very similar to the ScrollY method with main difference being that
 '   all values are relative to the Left instead of the Top side
 '*******************************************************************************
-Private Sub ScrollX(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
+Private Sub ScrollX(ByVal ctrl As Object, ByRef scrollAmount As SCROLL_AMOUNT)
     Const scrollPointsPerColumn As Single = 15
     Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(ctrl)
     '
@@ -748,7 +834,7 @@ End Sub
 '*******************************************************************************
 'Horizontally scroll a ListBox control
 '*******************************************************************************
-Private Sub ListScrollX(lbox As MSForms.Control, scrollAmount As SCROLL_AMOUNT)
+Private Sub ListScrollX(ByVal lbox As MSForms.Control, ByRef scrollAmount As SCROLL_AMOUNT)
     Const WM_KEYDOWN As Long = &H100
     Const VK_LEFT = &H25
     Const VK_RIGHT = &H27
@@ -773,7 +859,7 @@ End Sub
 '*******************************************************************************
 'Zooms controls using mouse scroll
 '*******************************************************************************
-Private Sub Zoom(ctrl As Object, scrollAmount As SCROLL_AMOUNT)
+Private Sub Zoom(ByVal ctrl As Object, ByRef scrollAmount As SCROLL_AMOUNT)
     Const minZoom As Integer = 10
     Const maxZoom As Integer = 400
     Dim ctrlType As CONTROL_TYPE: ctrlType = GetControlType(ctrl)
@@ -826,7 +912,7 @@ End Sub
 '*******************************************************************************
 'Get enum of Control Type
 '*******************************************************************************
-Private Function GetControlType(objControl As Object) As CONTROL_TYPE
+Private Function GetControlType(ByVal objControl As Object) As CONTROL_TYPE
     If objControl Is Nothing Then
         GetControlType = ctNone
         Exit Function
@@ -858,9 +944,9 @@ End Function
 'https://docs.microsoft.com/en-us/windows/desktop/api/shlwapi/nf-shlwapi-iunknown_getwindow
 '*******************************************************************************
 #If VBA7 Then
-Private Function GetFormHandle(objForm As MSForms.UserForm) As LongPtr
+Private Function GetFormHandle(ByVal objForm As MSForms.UserForm) As LongPtr
 #Else
-Private Function GetFormHandle(objForm As MSForms.UserForm) As Long
+Private Function GetFormHandle(ByVal objForm As MSForms.UserForm) As Long
 #End If
     #If Mac Then
     #Else

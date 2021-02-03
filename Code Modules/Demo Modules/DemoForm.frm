@@ -20,7 +20,7 @@ Private Sub btnClose_Click()
 End Sub
 
 Private Sub CheckBox1_Click()
-    HookMouseToForm Me, CheckBox1.Value
+    EnableMouseScroll Me, CheckBox1.Value
 End Sub
 
 Private Sub CommandButton1_Click()
@@ -47,7 +47,7 @@ Private Sub UserForm_Initialize()
     Me.Left = Application.Left + Application.Width / 2 - Me.Width / 2
     Me.Top = Application.Top + Application.Height / 2 - Me.Height / 2
     AddDemoData
-    HookMouseToForm Me
+    EnableMouseScroll Me
 End Sub
 
 Private Sub AddDemoData()

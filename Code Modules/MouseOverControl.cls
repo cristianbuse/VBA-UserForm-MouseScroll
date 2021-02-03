@@ -161,43 +161,43 @@ End Sub
 
 'MouseMove Events
 Private Sub m_CheckBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_CheckBox
+    SetHoveredControl Me
 End Sub
 Private Sub m_ComboBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_ComboBox
+    SetHoveredControl Me
 End Sub
 Private Sub m_CommandButton_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_CommandButton
+    SetHoveredControl Me
 End Sub
 Private Sub m_Frame_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_Frame
+    SetHoveredControl Me
 End Sub
 Private Sub m_Image_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_Image
+    SetHoveredControl Me
 End Sub
 Private Sub m_Label_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_Label
+    SetHoveredControl Me
 End Sub
 Private Sub m_ListBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_ListBox
+    SetHoveredControl Me
 End Sub
 Private Sub m_MultiPage_MouseMove(ByVal Index As Long, ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_MultiPage
+    SetHoveredControl Me
 End Sub
 Private Sub m_OptionButton_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_OptionButton
+    SetHoveredControl Me
 End Sub
 Private Sub M_TabStrip_MouseMove(ByVal Index As Long, ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_TabStrip
+    SetHoveredControl Me
 End Sub
 Private Sub m_TextBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_TextBox
+    SetHoveredControl Me
 End Sub
 Private Sub m_ToggleButton_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_ToggleButton
+    SetHoveredControl Me
 End Sub
 Private Sub m_UserForm_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl m_UserForm
+    SetHoveredControl Me
 End Sub
 
 'Scroll Event for Containers. This cancels out any scroll that is triggered by a
