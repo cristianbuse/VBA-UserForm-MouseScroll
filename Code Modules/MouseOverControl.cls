@@ -5,7 +5,7 @@ END
 Attribute VB_Name = "MouseOverControl"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
-Attribute VB_PredeclaredId = False
+Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 '''=============================================================================
 ''' VBA UserForm MouseScroll
@@ -50,6 +50,7 @@ Attribute VB_Exposed = False
 ''    - MouseScroll: module enabling Mouse Message processing
 ''==============================================================================
 
+'@PredeclaredID
 Option Explicit
 
 'Control types (MSForms.Control or MSForms.UserForm)
@@ -80,39 +81,53 @@ Attribute m_ToggleButton.VB_VarHelpID = -1
 Private WithEvents m_UserForm As MSForms.UserForm
 Attribute m_UserForm.VB_VarHelpID = -1
 
-Public Sub InitFromControl(ByVal objControl As Object)
-    Select Case TypeName(objControl)
+Public Function CreateFromControl(ByVal frmControl As MSForms.Control) As MouseOverControl
+    Dim newControl As MouseOverControl
+    Set newControl = New MouseOverControl
+    newControl.InitFromControl frmControl
+    Set CreateFromControl = newControl
+End Function
+
+Public Function CreateFromForm(ByVal frm As MSForms.UserForm) As MouseOverControl
+    Dim newControl As MouseOverControl
+    Set newControl = New MouseOverControl
+    newControl.CreateFromForm frm
+    Set CreateFromForm = newControl
+End Function
+
+Public Sub InitFromControl(ByVal frmControl As MSForms.Control)
+    Select Case TypeName(frmControl)
         Case "CheckBox"
-            Set m_CheckBox = objControl
+            Set m_CheckBox = frmControl
         Case "ComboBox"
-            Set m_ComboBox = objControl
+            Set m_ComboBox = frmControl
         Case "CommandButton"
-            Set m_CommandButton = objControl
+            Set m_CommandButton = frmControl
         Case "Frame"
-            Set m_Frame = objControl
+            Set m_Frame = frmControl
         Case "Image"
-            Set m_Image = objControl
+            Set m_Image = frmControl
         Case "Label"
-            Set m_Label = objControl
+            Set m_Label = frmControl
         Case "ListBox"
-            Set m_ListBox = objControl
+            Set m_ListBox = frmControl
         Case "MultiPage"
-            Set m_MultiPage = objControl
+            Set m_MultiPage = frmControl
         Case "OptionButton"
-            Set m_OptionButton = objControl
+            Set m_OptionButton = frmControl
         Case "TabStrip"
-            Set m_TabStrip = objControl
+            Set m_TabStrip = frmControl
         Case "TextBox"
-            Set m_TextBox = objControl
+            Set m_TextBox = frmControl
         Case "ToggleButton"
-            Set m_ToggleButton = objControl
+            Set m_ToggleButton = frmControl
         Case Else
-            If TypeOf objControl Is MSForms.UserForm Then
-                Set m_UserForm = objControl
-            Else
-                'Ignore
-            End If
+            'Ignore
     End Select
+End Sub
+
+Public Sub InitFromForm(ByVal frm As MSForms.UserForm)
+    Set m_UserForm = frm
 End Sub
 
 'MouseMove Events
