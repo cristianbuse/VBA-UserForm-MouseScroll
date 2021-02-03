@@ -81,21 +81,44 @@ Attribute m_ToggleButton.VB_VarHelpID = -1
 Private WithEvents m_UserForm As MSForms.UserForm
 Attribute m_UserForm.VB_VarHelpID = -1
 
-Public Function CreateFromControl(ByVal formControl As MSForms.Control) As MouseOverControl
+'Late-binded control/form
+Private m_control As Object
+
+#If VBA7 Then
+    Private m_hWndForm As LongPtr
+#Else
+    Private m_hWndForm As Long
+#End If
+
+#If VBA7 Then
+Public Function CreateFromControl(ByVal formControl As MSForms.Control, ByVal hWndForm As LongPtr) As MouseOverControl
+#Else
+Public Function CreateFromControl(ByVal formControl As MSForms.Control, ByVal hWndForm As Long) As MouseOverControl
+#End If
     Dim moControl As MouseOverControl
     Set moControl = New MouseOverControl
-    moControl.InitFromControl formControl
+    moControl.InitFromControl formControl, hWndForm
     Set CreateFromControl = moControl
 End Function
 
-Public Function CreateFromForm(ByVal uForm As MSForms.UserForm) As MouseOverControl
+#If VBA7 Then
+Public Function CreateFromForm(ByVal uForm As MSForms.UserForm, ByVal hWndForm As LongPtr) As MouseOverControl
+#Else
+Public Function CreateFromForm(ByVal uForm As MSForms.UserForm, ByVal hWndForm As Long) As MouseOverControl
+#End If
     Dim moControl As MouseOverControl
     Set moControl = New MouseOverControl
-    moControl.InitFromForm uForm
+    moControl.InitFromForm uForm, hWndForm
     Set CreateFromForm = moControl
 End Function
 
-Public Sub InitFromControl(ByVal formControl As MSForms.Control)
+#If VBA7 Then
+Public Sub InitFromControl(ByVal formControl As MSForms.Control, ByVal hWndForm As LongPtr)
+#Else
+Public Sub InitFromControl(ByVal formControl As MSForms.Control, ByVal hWndForm As Long)
+#End If
+    Set m_control = formControl
+    m_hWndForm = hWndForm
     Select Case TypeName(formControl)
         Case "CheckBox"
             Set m_CheckBox = formControl
@@ -126,7 +149,13 @@ Public Sub InitFromControl(ByVal formControl As MSForms.Control)
     End Select
 End Sub
 
-Public Sub InitFromForm(ByVal uForm As MSForms.UserForm)
+#If VBA7 Then
+Public Sub InitFromForm(ByVal uForm As MSForms.UserForm, ByVal hWndForm As LongPtr)
+#Else
+Public Sub InitFromForm(ByVal uForm As MSForms.UserForm, ByVal hWndForm As Long)
+#End If
+    Set m_control = uForm
+    m_hWndForm = hWndForm
     Set m_UserForm = uForm
 End Sub
 
@@ -185,6 +214,18 @@ Private Sub m_MultiPage_Scroll(ByVal Index As Long, ByVal ActionX As MSForms.fmS
     If ActionY = fmScrollActionFocusRequest Or ActionY = fmScrollActionControlRequest Then ActualDy = 0
     If ActionX = fmScrollActionFocusRequest Or ActionX = fmScrollActionControlRequest Then ActualDx = 0
 End Sub
+
+Public Function GetControl() As Object
+    Set GetControl = m_control
+End Function
+
+#If VBA7 Then
+Public Property Get FormHandle() As LongPtr
+#Else
+Public Property Get FormHandle() As Long
+#End If
+    FormHandle = m_hWndForm
+End Property
 
 Private Sub Class_Terminate()
     Set m_CheckBox = Nothing
