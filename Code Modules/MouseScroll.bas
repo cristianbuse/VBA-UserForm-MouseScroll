@@ -192,6 +192,10 @@ Private m_passScrollColl As New Collection
 'The last control that was hovered (could be the UserForm itself)
 Private m_lastHoveredControl As MouseOverControl
 
+'The last ComboBox that was used
+Private m_lastCombo As MSForms.ComboBox
+Private m_isLastComboOn As Boolean
+
 'The previous state of Application.EnableCancelKey (if available)
 Private m_enableCancelKey As Long
 
@@ -286,6 +290,7 @@ Private Sub UnHookMouse()
         Set m_controls = Nothing
         Set m_passScrollColl = Nothing
         Set m_lastHoveredControl = Nothing
+        Set m_lastCombo = Nothing
         Debug.Print "Mouse unhooked " & Now
     End If
 End Sub
@@ -383,6 +388,20 @@ Public Sub SetHoveredControl(ByVal moCtrl As MouseOverControl)
     On Error Resume Next
     m_passScrollToParentAtMargins = m_passScrollColl(CStr(moCtrl.FormHandle))
     On Error GoTo 0
+    UpdateLastCombo
+End Sub
+
+'*******************************************************************************
+'Keeps track of last combo box to avoid scrolling other controls while the combo
+'   is expanded
+'*******************************************************************************
+Private Sub UpdateLastCombo()
+    On Error Resume Next
+    Set m_lastCombo = m_lastHoveredControl.GetControl
+    On Error GoTo 0
+    If Not m_lastCombo Is Nothing Then
+        m_isLastComboOn = (m_lastCombo.TopIndex >= 0)
+    End If
 End Sub
 
 '*******************************************************************************
@@ -429,12 +448,19 @@ Private Function MouseProc(ByVal ncode As Long _
             scrollAction = GetScrollAction(yWheel:=(wParam = WM_MOUSEWHEEL))
             '
             Select Case scrollAction
-                Case saScrollY
+            Case saScrollY
+                If m_isLastComboOn Then
+                    m_passScrollToParentAtMargins = False
+                    Call ScrollY(m_lastCombo, scrollAmount)
+                Else
                     Call ScrollY(m_lastHoveredControl.GetControl, scrollAmount)
-                Case saScrollX
-                    Call ScrollX(m_lastHoveredControl.GetControl, scrollAmount)
-                Case saZoom
-                    Call Zoom(m_lastHoveredControl.GetControl, scrollAmount)
+                End If
+            Case saScrollX
+                If m_isLastComboOn Then GoTo NextHook
+                Call ScrollX(m_lastHoveredControl.GetControl, scrollAmount)
+            Case saZoom
+                If m_isLastComboOn Then GoTo NextHook
+                Call Zoom(m_lastHoveredControl.GetControl, scrollAmount)
             End Select
             '
             MouseProc = -1
