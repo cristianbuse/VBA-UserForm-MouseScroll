@@ -447,21 +447,21 @@ Private Function MouseProc(ByVal ncode As Long _
             scrollAmount = GetScrollAmount(GetWheelDelta(lParam.mouseData))
             scrollAction = GetScrollAction(yWheel:=(wParam = WM_MOUSEWHEEL))
             '
-            Select Case scrollAction
-            Case saScrollY
-                If m_isLastComboOn Then
-                    m_passScrollToParentAtMargins = False
-                    Call ScrollY(m_lastCombo, scrollAmount)
-                Else
+            If m_isLastComboOn Then
+                m_passScrollToParentAtMargins = False
+                Call ScrollY(m_lastCombo, scrollAmount)
+            Else
+                Select Case scrollAction
+                Case saScrollY
                     Call ScrollY(m_lastHoveredControl.GetControl, scrollAmount)
-                End If
-            Case saScrollX
-                If m_isLastComboOn Then GoTo NextHook
-                Call ScrollX(m_lastHoveredControl.GetControl, scrollAmount)
-            Case saZoom
-                If m_isLastComboOn Then GoTo NextHook
-                Call Zoom(m_lastHoveredControl.GetControl, scrollAmount)
-            End Select
+                Case saScrollX
+                    If m_isLastComboOn Then GoTo NextHook
+                    Call ScrollX(m_lastHoveredControl.GetControl, scrollAmount)
+                Case saZoom
+                    If m_isLastComboOn Then GoTo NextHook
+                    Call Zoom(m_lastHoveredControl.GetControl, scrollAmount)
+                End Select
+            End If
             '
             MouseProc = -1
             Exit Function
