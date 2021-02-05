@@ -233,6 +233,7 @@ Public Function EnableMouseScroll(ByVal uForm As MSForms.UserForm _
     If Not HookMouse Then Exit Function
     '
     AddForm uForm, passScrollToParentAtMargins
+    ResetLast
     EnableMouseScroll = True
 End Function
 
@@ -242,6 +243,15 @@ End Function
 '*******************************************************************************
 Public Sub DisableMouseScroll(ByVal uForm As MSForms.UserForm)
     RemoveForm GetFormHandle(uForm)
+    ResetLast
+End Sub
+
+'*******************************************************************************
+'Resets cached controls
+'*******************************************************************************
+Private Sub ResetLast()
+    Set m_lastHoveredControl = Nothing
+    Set m_lastCombo = Nothing
 End Sub
 
 '*******************************************************************************
