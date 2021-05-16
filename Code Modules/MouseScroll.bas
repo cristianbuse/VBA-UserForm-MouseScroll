@@ -146,6 +146,9 @@ Private Const WM_MBUTTONDOWN = &H207
 Private Const WM_MBUTTONUP = &H208
 Private Const WM_MBUTTONDBLCLK = &H209
 Private Const WM_MOUSEWHEEL As Long = &H20A
+Private Const WM_XBUTTONDOWN As Long = &H20B
+Private Const WM_XBUTTONUP As Long = &H20C
+Private Const WM_XBUTTONDBLCLK As Long = &H20D
 Private Const WM_MOUSEHWHEEL As Long = &H20E
 
 'lParam
@@ -487,6 +490,11 @@ Private Function MouseProc(ByVal ncode As Long _
             'WM_MBUTTONDOWN
             'WM_MBUTTONUP
             'WM_MBUTTONDBLCLK
+            '
+            'Mouse side buttons example:
+            If wParam = WM_XBUTTONDOWN Then
+                MsgBox "Side button pressed. Mouse data:" & vbNewLine & lParam.mouseData
+            End If
             '
             'For now, just passing the message to (CallNextHookEx)
         End If
