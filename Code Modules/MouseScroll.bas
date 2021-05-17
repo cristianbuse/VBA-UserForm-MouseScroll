@@ -493,7 +493,17 @@ Private Function MouseProc(ByVal ncode As Long _
             '
             'Mouse side buttons example:
             If wParam = WM_XBUTTONDOWN Then
-                MsgBox "Side button pressed. Mouse data:" & vbNewLine & lParam.mouseData
+                Const HIGH_VALUE  As Single = 10000000
+                '
+                If lParam.mouseData = &H20000 Then
+                    scrollAmount.lines = HIGH_VALUE
+                    ScrollY m_lastHoveredControl.GetControl, scrollAmount
+                ElseIf lParam.mouseData = &H10000 Then
+                    scrollAmount.lines = -HIGH_VALUE
+                    ScrollY m_lastHoveredControl.GetControl, scrollAmount
+                End If
+                MouseProc = -1
+                Exit Function
             End If
             '
             'For now, just passing the message to (CallNextHookEx)
