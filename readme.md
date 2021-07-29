@@ -27,10 +27,17 @@ Private Sub UserForm_Initialize()
 End Sub
 ```
 
+Not needed, but the following code can be added in the Form's Terminate Event for extra safety:
+```VBA
+Private Sub UserForm_Terminate()
+    DisableMouseScroll Me
+End Sub
+```
+
 ## Notes
 * Hold Shift for Horizontal Scroll and Ctrl for Zoom
 * The Mouse Hook will not work with Modeless Forms (Modal only)
-* No need to call the ```DisableMouseScroll``` method. It will be called automatically when the Form's Window is destroyed
+* No need to call the ```DisableMouseScroll``` method. It will be called automatically (from the MouseScroll.bas module) when the Form's Window is destroyed
 * Multiple forms are now tracked simultaneously and the mouse is unhooked automatically only when no forms are being tracked
 * You can download the available Demo Workbook for a quick start
 
