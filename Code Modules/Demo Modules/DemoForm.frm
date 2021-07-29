@@ -60,3 +60,7 @@ Private Sub AddDemoData()
         TextBox1.Value = TextBox1.Value & vbNewLine & i
     Next i
 End Sub
+
+Private Sub UserForm_Terminate()
+    DisableMouseScroll Me
+End Sub
