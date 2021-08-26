@@ -8,8 +8,8 @@ Multiple forms are tracked simultaneously. Just call the ```EnableMouseScroll```
 
 Just import the following 2 code modules in your VBA Project:
 
-* [**MouseScroll.bas**](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/master/Code%20Modules/MouseScroll.bas)
-* [**MouseOverControl.cls**](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/master/Code%20Modules/MouseOverControl.cls)
+* [**MouseScroll.bas**](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/master/src/MouseScroll.bas)
+* [**MouseOverControl.cls**](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/master/src/MouseOverControl.cls)
 
 ## Usage
 In your Modal Userform use:
