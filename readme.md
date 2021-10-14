@@ -40,6 +40,7 @@ End Sub
 * No need to call the ```DisableMouseScroll``` method. It will be called automatically (from the MouseScroll.bas module) when the Form's Window is destroyed
 * Multiple forms are now tracked simultaneously and the mouse is unhooked automatically only when no forms are being tracked
 * You can download the available Demo Workbook for a quick start
+* The value of the compiler constant ```Const DETECT_COMMON_CONTROLS``` (inside MouseOverControl.cls) needs to be set to a value of 1 in order for scroll to work for a ```ListView``` control (Microsoft Windows Common Controls reference)
 
 ## License
 MIT License
