@@ -455,6 +455,8 @@ Private Function MouseProc(ByVal ncode As Long _
     '   to the CallNextHookEx function and return it's value
     If ncode = HC_ACTION Then
         If wParam = WM_MOUSEWHEEL Or wParam = WM_MOUSEHWHEEL Then
+            If TypeName(m_lastHoveredControl.GetControl) Like "ListView*" Then GoTo NextHook
+            '
             Dim scrollAmount As SCROLL_AMOUNT
             Dim scrollAction As SCROLL_ACTION
             '

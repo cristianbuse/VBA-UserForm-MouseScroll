@@ -82,6 +82,13 @@ Attribute m_ToggleButton.VB_VarHelpID = -1
 Private WithEvents m_UserForm As MSForms.UserForm
 Attribute m_UserForm.VB_VarHelpID = -1
 
+#Const DETECT_COMMON_CONTROLS = 0 'Turn to 1 to detect ListView controls
+
+#If DETECT_COMMON_CONTROLS Then
+Private WithEvents m_ListView As MSComctlLib.ListView
+Attribute m_ListView.VB_VarHelpID = -1
+#End If
+
 'Late-binded control/form
 Private m_control As Object
 
@@ -146,7 +153,9 @@ Public Sub InitFromControl(ByVal formControl As MSForms.Control, ByVal hWndForm 
         Case "ToggleButton"
             Set m_ToggleButton = formControl
         Case Else
-            'Ignore
+            #If DETECT_COMMON_CONTROLS Then
+            If TypeName(formControl) Like "ListView*" Then Set m_ListView = formControl
+            #End If
     End Select
 End Sub
 
@@ -180,6 +189,9 @@ Private Sub m_Label_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, B
     SetHoveredControl Me
 End Sub
 Private Sub m_ListBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
+    SetHoveredControl Me
+End Sub
+Private Sub m_ListView_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As stdole.OLE_XPOS_PIXELS, ByVal y As stdole.OLE_YPOS_PIXELS)
     SetHoveredControl Me
 End Sub
 Private Sub m_MultiPage_MouseMove(ByVal Index As Long, ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
