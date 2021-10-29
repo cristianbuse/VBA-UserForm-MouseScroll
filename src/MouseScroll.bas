@@ -456,6 +456,7 @@ Private Function MouseProc(ByVal ncode As Long _
     If ncode = HC_ACTION Then
         If wParam = WM_MOUSEWHEEL Or wParam = WM_MOUSEHWHEEL Then
             If TypeName(m_lastHoveredControl.GetControl) Like "ListView*" Then GoTo NextHook
+            If TypeName(m_lastHoveredControl.GetControl) Like "WebBrowser*" Then GoTo NextHook
             '
             Dim scrollAmount As SCROLL_AMOUNT
             Dim scrollAction As SCROLL_ACTION
@@ -804,7 +805,7 @@ Private Function GetTextBoxLineHeight(ByVal tbox As MSForms.TextBox) As Single
     '
     'If the last line is empty then the AutoSize is ignoring it and an
     '   adjustment is needed for the total line count
-    If VBA.Right$(tbox.text, 2) = vbNewLine Then linesCount = linesCount - 1
+    If VBA.Right$(tbox.Text, 2) = vbNewLine Then linesCount = linesCount - 1
     lineHeight = (tbox.Height - topOffsetPt) / linesCount
     '
     'Restore TextBox state

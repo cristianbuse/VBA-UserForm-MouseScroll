@@ -83,10 +83,18 @@ Private WithEvents m_UserForm As MSForms.UserForm
 Attribute m_UserForm.VB_VarHelpID = -1
 
 #Const DETECT_COMMON_CONTROLS = 0 'Turn to 1 to detect ListView controls
+#Const DETECT_INTERNET_CONTROLS = 0 'Turn to 1 to detect WebBrowser controls
 
 #If DETECT_COMMON_CONTROLS Then
 Private WithEvents m_ListView As MSComctlLib.ListView
 Attribute m_ListView.VB_VarHelpID = -1
+#End If
+
+#If DETECT_INTERNET_CONTROLS Then
+Private WithEvents m_WebBrowser As SHDocVw.WebBrowser
+Attribute m_WebBrowser.VB_VarHelpID = -1
+Private WithEvents m_HTMLDocument As MSHTML.HTMLDocument
+Attribute m_HTMLDocument.VB_VarHelpID = -1
 #End If
 
 'Late-binded control/form
@@ -156,6 +164,9 @@ Public Sub InitFromControl(ByVal formControl As MSForms.Control, ByVal hWndForm 
             #If DETECT_COMMON_CONTROLS Then
             If TypeName(formControl) Like "ListView*" Then Set m_ListView = formControl
             #End If
+            #If DETECT_INTERNET_CONTROLS Then
+            If TypeName(formControl) Like "WebBrowser*" Then Set m_WebBrowser = formControl
+            #End If
     End Select
 End Sub
 
@@ -180,6 +191,12 @@ Private Sub m_CommandButton_MouseMove(ByVal Button As Integer, ByVal Shift As In
     SetHoveredControl Me
 End Sub
 Private Sub m_Frame_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
+    SetHoveredControl Me
+End Sub
+Private Sub m_WebBrowser_NavigateComplete2(ByVal pDisp As Object, URL As Variant)
+    Set m_HTMLDocument = m_WebBrowser.Document
+End Sub
+Private Sub m_HTMLDocument_onmousemove()
     SetHoveredControl Me
 End Sub
 Private Sub m_Image_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
