@@ -194,7 +194,9 @@ Private Sub m_Frame_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, B
     SetHoveredControl Me
 End Sub
 Private Sub m_WebBrowser_NavigateComplete2(ByVal pDisp As Object, URL As Variant)
+    #If DETECT_INTERNET_CONTROLS Then
     Set m_HTMLDocument = m_WebBrowser.Document
+    #End If
 End Sub
 Private Sub m_HTMLDocument_onmousemove()
     SetHoveredControl Me
