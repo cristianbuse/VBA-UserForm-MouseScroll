@@ -88,6 +88,8 @@ Attribute m_UserForm.VB_VarHelpID = -1
 #If DETECT_COMMON_CONTROLS Then
 Private WithEvents m_ListView As MSComctlLib.ListView
 Attribute m_ListView.VB_VarHelpID = -1
+Private WithEvents m_TreeView As MSComctlLib.TreeView
+Attribute m_TreeView.VB_VarHelpID = -1
 #End If
 
 #If DETECT_INTERNET_CONTROLS Then
@@ -163,6 +165,7 @@ Public Sub InitFromControl(ByVal formControl As MSForms.Control, ByVal hWndForm 
         Case Else
             #If DETECT_COMMON_CONTROLS Then
             If TypeName(formControl) Like "ListView*" Then Set m_ListView = formControl
+            If TypeName(formControl) Like "TreeView*" Then Set m_TreeView = formControl
             #End If
             #If DETECT_INTERNET_CONTROLS Then
             If TypeName(formControl) Like "WebBrowser*" Then Set m_WebBrowser = formControl
@@ -226,6 +229,9 @@ Private Sub m_TextBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer,
     SetHoveredControl Me
 End Sub
 Private Sub m_ToggleButton_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
+    SetHoveredControl Me
+End Sub
+Private Sub m_TreeView_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As stdole.OLE_XPOS_PIXELS, ByVal y As stdole.OLE_YPOS_PIXELS)
     SetHoveredControl Me
 End Sub
 Private Sub m_UserForm_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)

@@ -456,6 +456,7 @@ Private Function MouseProc(ByVal ncode As Long _
     If ncode = HC_ACTION Then
         If wParam = WM_MOUSEWHEEL Or wParam = WM_MOUSEHWHEEL Then
             If TypeName(m_lastHoveredControl.GetControl) Like "ListView*" Then GoTo NextHook
+            If TypeName(m_lastHoveredControl.GetControl) Like "TreeView*" Then GoTo NextHook
             If TypeName(m_lastHoveredControl.GetControl) Like "WebBrowser*" Then GoTo NextHook
             '
             Dim scrollAmount As SCROLL_AMOUNT

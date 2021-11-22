@@ -42,7 +42,7 @@ End Sub
 * You can download the available Demo Workbook for a quick start
 
 ## Other Controls
-* ```ListView``` control
+* ```ListView```, ```TreeView``` control
      - Requires a reference to Microsoft Windows Common Controls
      - The value of the compiler constant ```DETECT_COMMON_CONTROLS``` (inside MouseOverControl.cls) needs to be set to a value of 1
 * ```WebBrowser``` control
