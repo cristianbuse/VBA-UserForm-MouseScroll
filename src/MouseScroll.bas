@@ -71,7 +71,7 @@ Option Private Module
 #Else
     'Windows API functionality
     #If VBA7 Then
-        Private Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
+        Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
         Private Declare PtrSafe Function CallNextHookEx Lib "user32" (ByVal hHook As LongPtr, ByVal ncode As Long, ByVal wParam As LongPtr, lParam As Any) As LongPtr
         Private Declare PtrSafe Function GetCurrentThreadId Lib "kernel32" () As Long
         Private Declare PtrSafe Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
@@ -87,6 +87,7 @@ Option Private Module
         Private Declare PtrSafe Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
         Private Declare PtrSafe Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As LongPtr) As Long
     #Else
+        Private Declare Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As Long)
         Private Declare Function CallNextHookEx Lib "user32" (ByVal hHook As Long, ByVal ncode As Long, ByVal wParam As Long, lParam As Any) As Long
         Private Declare Function GetCurrentThreadId Lib "kernel32" () As Long
         Private Declare Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
@@ -426,12 +427,14 @@ End Sub
 #If VBA7 Then
 Private Function MouseProc(ByVal ncode As Long _
                          , ByVal wParam As Long _
-                         , ByRef lParam As MOUSEHOOKSTRUCTEX) As LongPtr
+                         , ByVal lParam As LongPtr) As LongPtr
 #Else
 Private Function MouseProc(ByVal ncode As Long _
                          , ByVal wParam As Long _
-                         , ByRef lParam As MOUSEHOOKSTRUCTEX) As Long
+                         , ByVal lParam As Long) As Long
 #End If
+    Dim mStruct As MOUSEHOOKSTRUCTEX
+    '
     'Unhook if a VBE window is active
     If IsVBEActive Then GoTo Unhook
     '
@@ -446,6 +449,8 @@ Private Function MouseProc(ByVal ncode As Long _
     If m_lastHoveredControl Is Nothing Then GoTo NextHook
     'Ignore input if Window matching last hovered control is not Active
     If Not CBool(IsWindowEnabled(m_lastHoveredControl.FormHandle)) Then GoTo NextHook
+    '
+    CopyMemory mStruct, ByVal lParam, LenB(mStruct)
     '
     'The nCode could either be negative, HC_ACTION or HC_NOREMOVE
     'HC_NOREMOVE is passed when the Application calls the PeekMessage function
@@ -462,7 +467,7 @@ Private Function MouseProc(ByVal ncode As Long _
             Dim scrollAmount As SCROLL_AMOUNT
             Dim scrollAction As SCROLL_ACTION
             '
-            scrollAmount = GetScrollAmount(GetWheelDelta(lParam.mouseData))
+            scrollAmount = GetScrollAmount(GetWheelDelta(mStruct.mouseData))
             scrollAction = GetScrollAction(yWheel:=(wParam = WM_MOUSEWHEEL))
             '
             If m_isLastComboOn Then
@@ -500,10 +505,10 @@ Private Function MouseProc(ByVal ncode As Long _
             If wParam = WM_XBUTTONDOWN Then
                 Const HIGH_VALUE  As Single = 10000000
                 '
-                If lParam.mouseData = &H20000 Then
+                If mStruct.mouseData = &H20000 Then
                     scrollAmount.lines = HIGH_VALUE
                     ScrollY m_lastHoveredControl.GetControl, scrollAmount
-                ElseIf lParam.mouseData = &H10000 Then
+                ElseIf mStruct.mouseData = &H10000 Then
                     scrollAmount.lines = -HIGH_VALUE
                     ScrollY m_lastHoveredControl.GetControl, scrollAmount
                 End If
