@@ -741,7 +741,7 @@ Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox, ByRef scrollAmount As SCR
     'Jump to top/bottom line of the "page"
     Const topOffsetPt As Single = 3 'the extra 3 points at the top of a tbox
     If deltaLines > 0 Then
-        tbox.CurY = PointsToHiMeter(topOffsetPt + linesPerPage * lineHeight)
+        tbox.CurY = PointsToHiMeter(topOffsetPt + (linesPerPage - 1) * lineHeight)
     ElseIf deltaLines < 0 Then
         tbox.CurY = PointsToHiMeter(topOffsetPt)
     End If
