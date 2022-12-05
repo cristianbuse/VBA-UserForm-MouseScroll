@@ -723,31 +723,45 @@ Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox, ByRef scrollAmount As SCR
     'Store current Selection (to be reverted later)
     tbox.SetFocus
     Dim lastY As Long: lastY = tbox.CurY
+    Dim startLine As Long: startLine = tbox.CurLine
     Dim selectionStart As Long: selectionStart = tbox.SelStart
     Dim selectionLength As Long: selectionLength = tbox.SelLength
+    Dim scBars As fmScrollBars: scBars = tbox.ScrollBars
+    Dim hasWrap As Boolean: hasWrap = tbox.WordWrap
+    '
+    If Not hasWrap Then
+        Select Case scBars
+        Case fmScrollBars.fmScrollBarsHorizontal
+            tbox.ScrollBars = fmScrollBarsNone
+        Case fmScrollBars.fmScrollBarsBoth
+            tbox.ScrollBars = fmScrollBarsVertical
+        End Select
+    End If
     '
     'Compute line metrics
+    Const tbOffsetPt As Single = 3 'extra points at the top/bottom of a tbox
     Dim deltaLines As Long
-    Dim lineHeight As Single: lineHeight = GetTextBoxLineHeight(tbox)
-    Dim linesPerPage As Long: linesPerPage = VBA.Int(tbox.Height / lineHeight)
+    Dim styleOffsetPt As Single
+    Dim lineHeight As Single: lineHeight = GetTextBoxLineHeight(tbox, styleOffsetPt)
+    Dim linesPerPage As Single: linesPerPage = (tbox.Height - tbOffsetPt - styleOffsetPt) / lineHeight
     '
     'Lines to scroll up/down
     If scrollAmount.lines <> 0 Then
         deltaLines = -scrollAmount.lines
     Else
-        deltaLines = -scrollAmount.pages * linesPerPage
+        deltaLines = -scrollAmount.pages * VBA.Int(linesPerPage)
     End If
     '
     'Jump to top/bottom line of the "page"
-    Const topOffsetPt As Single = 3 'the extra 3 points at the top of a tbox
     If deltaLines > 0 Then
-        tbox.CurY = PointsToHiMeter(topOffsetPt + (linesPerPage - 1) * lineHeight)
+        tbox.CurY = PointsToHiMeter(tbOffsetPt + styleOffsetPt + (linesPerPage - 1) * lineHeight)
     ElseIf deltaLines < 0 Then
-        tbox.CurY = PointsToHiMeter(topOffsetPt)
+        tbox.CurY = PointsToHiMeter(tbOffsetPt + styleOffsetPt)
     End If
     '
     Dim lastLine As Long: lastLine = tbox.CurLine
     Dim newline As Long: newline = lastLine + deltaLines
+    Dim hasIssue As Boolean 'Scroll bug when newline is one line below bottom edge
     '
     'Clamp the new scroll line
     If newline < 0 Then
@@ -755,13 +769,22 @@ Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox, ByRef scrollAmount As SCR
     ElseIf newline >= tbox.LineCount Then
         newline = tbox.LineCount - 1
     End If
-    If lastLine <> newline Then tbox.CurLine = newline
+    If lastLine <> newline Then
+        If deltaLines > 0 Then
+            hasIssue = (startLine = newline + 1)
+        ElseIf deltaLines < 0 Then
+            hasIssue = (startLine = newline + VBA.Int(linesPerPage))
+        End If
+        tbox.CurLine = newline
+    End If
     '
     'Restore Selection. Must hide (or disable) textBox first, to lock scroll
     tbox.Visible = False
     tbox.SelStart = selectionStart
     tbox.SelLength = selectionLength
+    If tbox.ScrollBars <> scBars Then tbox.ScrollBars = scBars
     tbox.Visible = True
+    If hasIssue Then GetParent(tbox).Repaint
     tbox.SetFocus
     '
     If m_passScrollToParentAtMargins Then
@@ -775,11 +798,25 @@ Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox, ByRef scrollAmount As SCR
         If currentY = lastY Then Call ScrollY(tbox.Parent, scrollAmount)
     End If
 End Sub
+Private Function GetParent(ByVal tbox As MSForms.TextBox) As Object
+    Dim p As Object: Set p = tbox.Parent
+    Dim o As Object
+    '
+    On Error Resume Next
+    Do
+        Set o = Nothing
+        Set o = p.Parent
+        If Not o Is Nothing Then Set p = o
+    Loop Until o Is Nothing
+    On Error GoTo 0
+    Set GetParent = p
+End Function
 
 '*******************************************************************************
 'Get the row height for a TextBox by using the AutoSize feature
 '*******************************************************************************
-Private Function GetTextBoxLineHeight(ByVal tbox As MSForms.TextBox) As Single
+Private Function GetTextBoxLineHeight(ByVal tbox As MSForms.TextBox _
+                                    , ByRef styleOffsetPt As Single) As Single
     tbox.SetFocus
     'Store Size and appearance
     Dim oldHeight As Single: oldHeight = tbox.Height
@@ -788,23 +825,16 @@ Private Function GetTextBoxLineHeight(ByVal tbox As MSForms.TextBox) As Single
     Dim isAutoSized As Boolean: isAutoSized = tbox.AutoSize
     Dim borderSt As fmBorderStyle: borderSt = tbox.BorderStyle
     Dim spEffect As fmSpecialEffect: spEffect = tbox.SpecialEffect
-    Dim scBars As fmScrollBars: scBars = tbox.ScrollBars
-    Dim linesCount As Long: linesCount = tbox.LineCount
-    '
+    Dim hasWrap As Boolean: hasWrap = tbox.WordWrap
+    Dim linesCount As Long
     Dim lineHeight As Single
-    Const topOffsetPt As Single = 3 'the extra 3 points at the top of a tbox
+    Const tbOffsetPt As Single = 3 'extra points at the top/bottom of a tbox
     '
     'Make sure AutoSize is triggered
+    If hasWrap Then tbox.WordWrap = False
+    linesCount = tbox.LineCount
     If isVisible Then tbox.Visible = False
     If isAutoSized Then tbox.AutoSize = False
-    If tbox.WordWrap Then
-        Select Case scBars
-            Case fmScrollBars.fmScrollBarsHorizontal
-                tbox.ScrollBars = fmScrollBarsNone
-            Case fmScrollBars.fmScrollBarsBoth
-                tbox.ScrollBars = fmScrollBarsVertical
-        End Select
-    End If
     tbox.BorderStyle = fmBorderStyleNone
     tbox.SpecialEffect = fmSpecialEffectFlat
     tbox.AutoSize = True
@@ -812,13 +842,16 @@ Private Function GetTextBoxLineHeight(ByVal tbox As MSForms.TextBox) As Single
     'If the last line is empty then the AutoSize is ignoring it and an
     '   adjustment is needed for the total line count
     If VBA.Right$(tbox.Text, 2) = vbNewLine Then linesCount = linesCount - 1
-    lineHeight = (tbox.Height - topOffsetPt) / linesCount
+    lineHeight = (tbox.Height - tbOffsetPt) / linesCount
     '
     'Restore TextBox state
-    tbox.AutoSize = isAutoSized
     If tbox.BorderStyle <> borderSt Then tbox.BorderStyle = borderSt
     If tbox.SpecialEffect <> spEffect Then tbox.SpecialEffect = spEffect
-    If tbox.ScrollBars <> scBars Then tbox.ScrollBars = scBars
+    tbox.AutoSize = False
+    tbox.AutoSize = True
+    styleOffsetPt = tbox.Height - linesCount * lineHeight - tbOffsetPt
+    tbox.AutoSize = isAutoSized
+    If hasWrap Then tbox.WordWrap = True
     tbox.Height = oldHeight
     tbox.Width = oldWidth
     tbox.Visible = isVisible
