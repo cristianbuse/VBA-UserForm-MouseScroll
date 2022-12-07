@@ -716,52 +716,86 @@ End Sub
 '*******************************************************************************
 Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox, ByRef scrollAmount As SCROLL_AMOUNT)
     If Not tbox.MultiLine Then
-        Call ScrollY(tbox.Parent, scrollAmount)
+        ScrollY tbox.Parent, scrollAmount
         Exit Sub
     End If
-    '
-    'Store current Selection (to be reverted later)
     tbox.SetFocus
-    Dim lastY As Long: lastY = tbox.CurY
-    Dim startLine As Long: startLine = tbox.CurLine
-    Dim selectionStart As Long: selectionStart = tbox.SelStart
+    '
+    'Store current state
+    Dim selectionStart As Long:  selectionStart = tbox.SelStart
     Dim selectionLength As Long: selectionLength = tbox.SelLength
-    Dim scBars As fmScrollBars: scBars = tbox.ScrollBars
-    Dim hasWrap As Boolean: hasWrap = tbox.WordWrap
+    Dim startY As Long:          startY = tbox.CurY
+    Dim startLine As Long:       startLine = tbox.CurLine
     '
-    If Not hasWrap Then
-        Select Case scBars
-        Case fmScrollBars.fmScrollBarsHorizontal
-            tbox.ScrollBars = fmScrollBarsNone
-        Case fmScrollBars.fmScrollBarsBoth
-            tbox.ScrollBars = fmScrollBarsVertical
-        End Select
-    End If
-    '
-    'Compute line metrics
-    Const tbOffsetPt As Single = 3 'extra points at the top/bottom of a tbox
-    Dim deltaLines As Long
-    Dim styleOffsetPt As Single
-    Dim lineHeight As Single: lineHeight = GetTextBoxLineHeight(tbox, styleOffsetPt)
-    Dim linesPerPage As Single: linesPerPage = (tbox.Height - tbOffsetPt - styleOffsetPt) / lineHeight
+    'Determine line characteristics
+    With tbox
+        .CurLine = 0
+        .CurY = 0
+        Dim minY As Long:  minY = .CurY
+        Dim currY As Long: currY = minY
+        Dim lastY As Long
+        Dim i As Long
+        '
+        For i = 1 To .LineCount - 1
+            lastY = currY
+            .CurLine = i
+            currY = .CurY
+            If currY = lastY Then Exit For
+        Next i
+        Dim linesPerPage As Long: linesPerPage = i - 1
+        '
+        If linesPerPage = .LineCount - 1 Then
+            tbox.SelStart = selectionStart
+            tbox.SelLength = selectionLength
+            ScrollY tbox.Parent, scrollAmount
+            Exit Sub
+        End If
+        '
+        .CurLine = .LineCount - 1
+        Dim lastSelStart As Long: lastSelStart = .SelStart
+        .CurLine = 0
+        .Visible = False
+        .SelStart = lastSelStart
+        .SelLength = 0
+        .Visible = True
+        .SetFocus
+        '
+        Dim bottomY As Long: bottomY = .CurY
+        Dim hmPerLine As Single
+        Dim topAdjust As Long
+        '
+        .CurLine = .LineCount - 1
+        .Visible = False
+        .SelStart = 0
+        .SelLength = 0
+        .Visible = True
+        .SetFocus
+        '
+        If bottomY > minY Then
+            hmPerLine = (bottomY - minY) / (.LineCount - 1)
+        Else
+            hmPerLine = (minY - .CurY) / (.LineCount - linesPerPage - 1)
+            minY = VBA.Int(bottomY - hmPerLine * (.LineCount - 1))
+        End If
+        '
+        topAdjust = .CurY - minY + (.LineCount - linesPerPage - 1) * hmPerLine
+        If Abs(topAdjust) = 1 Then topAdjust = 0 'Rounding error
+    End With
+    If startY > tbox.LineCount * hmPerLine Then startY = startY - topAdjust
     '
     'Lines to scroll up/down
+    Dim deltaLines As Long
     If scrollAmount.lines <> 0 Then
         deltaLines = -scrollAmount.lines
     Else
         deltaLines = -scrollAmount.pages * VBA.Int(linesPerPage)
     End If
     '
-    'Jump to top/bottom line of the "page"
-    If deltaLines > 0 Then
-        tbox.CurY = PointsToHiMeter(tbOffsetPt + styleOffsetPt + (linesPerPage - 1) * lineHeight)
-    ElseIf deltaLines < 0 Then
-        tbox.CurY = PointsToHiMeter(tbOffsetPt + styleOffsetPt)
-    End If
+    'Adjust for 1 line scroll here
+    'deltaLines = Sgn(deltaLines)
     '
-    Dim lastLine As Long: lastLine = tbox.CurLine
-    Dim newline As Long: newline = lastLine + deltaLines
-    Dim hasIssue As Boolean 'Scroll bug when newline is one line below bottom edge
+    Dim topLine As Long: topLine = startLine - (startY - minY) / hmPerLine
+    Dim newline As Long: newline = topLine + deltaLines
     '
     'Clamp the new scroll line
     If newline < 0 Then
@@ -769,33 +803,20 @@ Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox, ByRef scrollAmount As SCR
     ElseIf newline >= tbox.LineCount Then
         newline = tbox.LineCount - 1
     End If
-    If lastLine <> newline Then
-        If deltaLines > 0 Then
-            hasIssue = (startLine = newline + 1)
-        ElseIf deltaLines < 0 Then
-            hasIssue = (startLine = newline + VBA.Int(linesPerPage))
-        End If
-        tbox.CurLine = newline
-    End If
+    tbox.CurLine = newline
     '
     'Restore Selection. Must hide (or disable) textBox first, to lock scroll
     tbox.Visible = False
     tbox.SelStart = selectionStart
     tbox.SelLength = selectionLength
-    If tbox.ScrollBars <> scBars Then tbox.ScrollBars = scBars
     tbox.Visible = True
-    If hasIssue Then GetParent(tbox).Repaint
+    If Abs(startLine - newline - linesPerPage) < 2 Then GetParent(tbox).Repaint
     tbox.SetFocus
     '
     If m_passScrollToParentAtMargins Then
-        Dim currentY As Long: currentY = tbox.CurY
-        'Adjustment in case the top of the textbox is outside the parent scroll
-        Const topAdjust As Long = 1734040
-        '
-        If currentY > topAdjust Then currentY = currentY - topAdjust
-        If lastY > topAdjust Then lastY = lastY - topAdjust
-        '
-        If currentY = lastY Then Call ScrollY(tbox.Parent, scrollAmount)
+        currY = tbox.CurY
+        If currY > tbox.LineCount * hmPerLine Then currY = currY - topAdjust
+        If Abs(currY - startY) < 2 Then ScrollY tbox.Parent, scrollAmount
     End If
 End Sub
 Private Function GetParent(ByVal tbox As MSForms.TextBox) As Object
@@ -810,55 +831,6 @@ Private Function GetParent(ByVal tbox As MSForms.TextBox) As Object
     Loop Until o Is Nothing
     On Error GoTo 0
     Set GetParent = p
-End Function
-
-'*******************************************************************************
-'Get the row height for a TextBox by using the AutoSize feature
-'*******************************************************************************
-Private Function GetTextBoxLineHeight(ByVal tbox As MSForms.TextBox _
-                                    , ByRef styleOffsetPt As Single) As Single
-    tbox.SetFocus
-    'Store Size and appearance
-    Dim oldHeight As Single: oldHeight = tbox.Height
-    Dim oldWidth As Single: oldWidth = tbox.Width
-    Dim isVisible As Boolean: isVisible = tbox.Visible
-    Dim isAutoSized As Boolean: isAutoSized = tbox.AutoSize
-    Dim borderSt As fmBorderStyle: borderSt = tbox.BorderStyle
-    Dim spEffect As fmSpecialEffect: spEffect = tbox.SpecialEffect
-    Dim hasWrap As Boolean: hasWrap = tbox.WordWrap
-    Dim linesCount As Long
-    Dim lineHeight As Single
-    Const tbOffsetPt As Single = 3 'extra points at the top/bottom of a tbox
-    '
-    'Make sure AutoSize is triggered
-    If hasWrap Then tbox.WordWrap = False
-    linesCount = tbox.LineCount
-    If isVisible Then tbox.Visible = False
-    If isAutoSized Then tbox.AutoSize = False
-    tbox.BorderStyle = fmBorderStyleNone
-    tbox.SpecialEffect = fmSpecialEffectFlat
-    tbox.AutoSize = True
-    '
-    'If the last line is empty then the AutoSize is ignoring it and an
-    '   adjustment is needed for the total line count
-    If VBA.Right$(tbox.Text, 2) = vbNewLine Then linesCount = linesCount - 1
-    lineHeight = (tbox.Height - tbOffsetPt) / linesCount
-    '
-    'Restore TextBox state
-    If tbox.BorderStyle <> borderSt Then tbox.BorderStyle = borderSt
-    If tbox.SpecialEffect <> spEffect Then tbox.SpecialEffect = spEffect
-    tbox.AutoSize = False
-    tbox.AutoSize = True
-    styleOffsetPt = tbox.Height - linesCount * lineHeight - tbOffsetPt
-    tbox.AutoSize = isAutoSized
-    If hasWrap Then tbox.WordWrap = True
-    tbox.Height = oldHeight
-    tbox.Width = oldWidth
-    tbox.Visible = isVisible
-    tbox.SetFocus
-    '
-    'Return result
-    GetTextBoxLineHeight = lineHeight
 End Function
 
 '*******************************************************************************
@@ -1080,20 +1052,6 @@ Private Function IsControlKeyDown() As Boolean
     Const VK_CONTROL As Long = &H11
     '
     IsControlKeyDown = CBool(GetKeyState(VK_CONTROL) And &H8000)
-End Function
-
-'*******************************************************************************
-'Convert between HiMetric and Points
-'1) 1 hiMetric = 0.00001 meters (1E-5)
-'2) 1 inch = 0.0254 meters
-'3) 1 inch = 72 points (in computing)
-'1)+2)+3) => 1 hiMetric = 1 / 100000 / 0.0254 * 72 = 0.0283464... points
-'*******************************************************************************
-Private Function HiMetricToPoints(ByVal hiMetric As Long) As Single
-    HiMetricToPoints = hiMetric * 0.0283464
-End Function
-Private Function PointsToHiMeter(ByVal pts As Single) As Long
-    PointsToHiMeter = CLng(pts / 0.0283464)
 End Function
 
 '*******************************************************************************
