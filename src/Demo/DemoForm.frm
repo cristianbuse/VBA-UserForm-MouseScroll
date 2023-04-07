@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} DemoForm 
-   Caption         =   "TEST CAPTION"
-   ClientHeight    =   4710
+   Caption         =   "UserForm1"
+   ClientHeight    =   4515
    ClientLeft      =   120
-   ClientTop       =   450
-   ClientWidth     =   13905
+   ClientTop       =   465
+   ClientWidth     =   13215
    OleObjectBlob   =   "DemoForm.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -13,6 +13,7 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+
 Option Explicit
 
 Private Sub btnClose_Click()
@@ -40,6 +41,10 @@ Private Sub CommandButton3_Click()
         .Top = Me.Top + 30
         .Show vbModal
     End With
+End Sub
+
+Private Sub CommandButton4_Click()
+    Debug.Print "Input: " & InputBox("Demo", "Demo", "Demo")
 End Sub
 
 Private Sub UserForm_Initialize()
