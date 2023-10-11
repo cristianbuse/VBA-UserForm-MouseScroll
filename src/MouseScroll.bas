@@ -296,18 +296,18 @@ End Sub
 '*******************************************************************************
 Private Sub AddForm(ByVal uForm As MSForms.UserForm, ByVal passScrollAtMargins As Boolean)
     Dim hWndForm As LongPtr
-    Dim key_ As String
+    Dim keyValue As String
     '
     hWndForm = GetFormHandle(uForm)
-    key_ = CStr(hWndForm)
+    keyValue = CStr(hWndForm)
     '
-    If CollectionHasKey(m_hWndAllForms, key_) Then
-        m_controls.Remove key_
-        m_passScrollColl.Remove key_
+    If CollectionHasKey(m_hWndAllForms, keyValue) Then
+        m_controls.Remove keyValue
+        m_passScrollColl.Remove keyValue
     Else
-        m_hWndAllForms.Add hWndForm, key_
+        m_hWndAllForms.Add hWndForm, keyValue
     End If
-    m_passScrollColl.Add passScrollAtMargins, key_
+    m_passScrollColl.Add passScrollAtMargins, keyValue
     '
     If m_controls.Count = 0 Then
         'Keep track of the owner of the first form only
@@ -316,7 +316,7 @@ Private Sub AddForm(ByVal uForm As MSForms.UserForm, ByVal passScrollAtMargins A
     '
     Dim subControls As Collection
     Set subControls = New Collection
-    m_controls.Add subControls, key_
+    m_controls.Add subControls, keyValue
     '
     Dim frmCtrl As MSForms.Control
     '
@@ -336,10 +336,10 @@ End Function
 '*******************************************************************************
 Private Sub RemoveForm(ByVal hWndForm As LongPtr)
     If CollectionHasKey(m_hWndAllForms, hWndForm) Then
-        Dim key_ As String: key_ = CStr(hWndForm)
-        m_hWndAllForms.Remove key_
-        m_controls.Remove key_
-        m_passScrollColl.Remove key_
+        Dim keyValue As String: keyValue = CStr(hWndForm)
+        m_hWndAllForms.Remove keyValue
+        m_controls.Remove keyValue
+        m_passScrollColl.Remove keyValue
     End If
     If m_hWndAllForms.Count = 0 Then UnHookMouse
 End Sub
@@ -361,13 +361,13 @@ End Sub
 'Returns a boolean indicating if a Collection has a specific key
 'Parameters:
 '   - coll: a collection to check for key
-'   - key_: the key being searched for
+'   - keyValue: the key being searched for
 'Does not raise errors
 '*******************************************************************************
 Private Function CollectionHasKey(ByVal coll As Collection _
-                                , ByVal key_ As String) As Boolean
+                                , ByVal keyValue As String) As Boolean
     On Error Resume Next
-    coll.Item key_
+    coll.Item keyValue
     CollectionHasKey = (Err.Number = 0)
     On Error GoTo 0
 End Function
