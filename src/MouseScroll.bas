@@ -64,12 +64,10 @@ Attribute VB_Name = "MouseScroll"
 Option Explicit
 Option Private Module
 
+#Const Windows = (Mac = 0)
+
 'API declarations
-'*******************************************************************************
-#If Mac Then
-    'No Mac functionality implemented
-#Else
-    'Windows API functionality
+#If Windows Then
     #If VBA7 Then
         Private Declare PtrSafe Function CallNextHookEx Lib "user32" (ByVal hHook As LongPtr, ByVal ncode As Long, ByVal wParam As LongPtr, lParam As Any) As LongPtr
         Private Declare PtrSafe Function GetCurrentThreadId Lib "kernel32" () As Long
@@ -102,14 +100,18 @@ Option Private Module
         Private Declare Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As Long) As Long
     #End If
 #End If
-'*******************************************************************************
+
+#If VBA7 = 0 Then
+    Private Enum LongPtr
+        [_]
+    End Enum
+#End If
 
 'Id of the hook procedure to be installed with SetWindowsHookExA for MouseProc
 Private Const WH_MOUSE As Long = 7
 
 'Necessary API structs and constants for MouseProc Callback
 'https://msdn.microsoft.com/en-us/library/windows/desktop/ms644988(v=vs.85).aspx
-'*******************************************************************************
 Private Type POINTAPI
     x As Long
     y As Long
@@ -117,17 +119,9 @@ End Type
 
 Private Type MOUSEHOOKSTRUCT
     pt As POINTAPI
-    #If VBA7 Then
-        hwnd As LongPtr
-    #Else
-        hwnd As Long
-    #End If
+    hwnd As LongPtr
     wHitTestCode As Long
-    #If VBA7 Then
-        dwExtraInfo As LongPtr
-    #Else
-        dwExtraInfo As Long
-    #End If
+    dwExtraInfo As LongPtr
 End Type
 
 'nCode
@@ -156,11 +150,9 @@ Private Type MOUSEHOOKSTRUCTEX
     tagMOUSEHOOKSTRUCT As MOUSEHOOKSTRUCT
     mouseData As Long 'DWORD
 End Type
-'*******************************************************************************
 
 'Necessary struct and constants to calculate the number of lines/pages to scroll
 'https://msdn.microsoft.com/en-us/library/ms997498.aspx
-'*******************************************************************************
 Private Const WHEEL_DELTA As Long = 120
 Private Const SPI_GETWHEELSCROLLLINES As Long = &H68
 
@@ -168,20 +160,12 @@ Private Type SCROLL_AMOUNT
     lines As Single
     pages As Single
 End Type
-'*******************************************************************************
 
 'm_hHookMouse - Hook handle obtained from a previous call to SetWindowsHookEx
 '   - Used when calling UnhookWindowsHookEx in order to remove the hook
 'm_hWndMainOwner - Main UserForm's Owner Handle (to track Modal state)
-'*******************************************************************************
-#If VBA7 Then
-    Private m_hHookMouse As LongPtr
-    Private m_hWndMainOwner As LongPtr
-#Else
-    Private m_hHookMouse As Long
-    Private m_hWndMainOwner As Long
-#End If
-'*******************************************************************************
+Private m_hHookMouse As LongPtr
+Private m_hWndMainOwner As LongPtr
 
 'Window handles for all forms with scrolling enabled. Always instantiated
 Private m_hWndAllForms As New Collection
@@ -270,8 +254,7 @@ Private Function HookMouse() As Boolean
     '
     Dim isHookSuccessful As Boolean
     '
-    #If Mac Then
-    #Else
+    #If Windows Then
         m_hHookMouse = SetWindowsHookEx(WH_MOUSE, AddressOf MouseProc, 0, GetCurrentThreadId())
     #End If
     isHookSuccessful = (m_hHookMouse <> 0)
@@ -291,8 +274,7 @@ End Function
 '*******************************************************************************
 Private Sub UnHookMouse()
     If m_hHookMouse <> 0 Then
-        #If Mac Then
-        #Else
+        #If Windows Then
             UnhookWindowsHookEx m_hHookMouse
         #End If
         On Error Resume Next
@@ -314,11 +296,7 @@ End Sub
 'Adds a sub-collection of MouseMove controls to m_controls collection
 '*******************************************************************************
 Private Sub AddForm(ByVal uForm As MSForms.UserForm, ByVal passScrollAtMargins As Boolean)
-    #If VBA7 Then
-        Dim hWndForm As LongPtr
-    #Else
-        Dim hWndForm As Long
-    #End If
+    Dim hWndForm As LongPtr
     Dim key_ As String
     '
     hWndForm = GetFormHandle(uForm)
@@ -352,11 +330,7 @@ End Sub
 '*******************************************************************************
 'Removes a form (by window handle) from the internal collections
 '*******************************************************************************
-#If VBA7 Then
 Private Sub RemoveForm(ByVal hWndForm As LongPtr)
-#Else
-Private Sub RemoveForm(ByVal hWndForm As Long)
-#End If
     If CollectionHasKey(m_hWndAllForms, hWndForm) Then
         Dim key_ As String: key_ = CStr(hWndForm)
         m_hWndAllForms.Remove key_
@@ -420,17 +394,10 @@ End Sub
 '*******************************************************************************
 'Callback hook function - monitors mouse messages
 '*******************************************************************************
-#If Mac Then
-#Else
-#If VBA7 Then
+#If Windows Then
 Private Function MouseProc(ByVal ncode As Long _
                          , ByVal wParam As Long _
                          , ByRef lParam As MOUSEHOOKSTRUCTEX) As LongPtr
-#Else
-Private Function MouseProc(ByVal ncode As Long _
-                         , ByVal wParam As Long _
-                         , ByRef lParam As MOUSEHOOKSTRUCTEX) As Long
-#End If
     'Unhook if a VBE window is active
     If IsVBEActive Then GoTo Unhook
     '
@@ -583,8 +550,7 @@ End Function
 Private Function GetUserScrollLines() As Long
     Dim result As Long: result = 3 'default
     '
-    #If Mac Then
-    #Else
+    #If Windows Then
         SystemParametersInfo SPI_GETWHEELSCROLLLINES, 0, result, 0
     #End If
     GetUserScrollLines = result
@@ -1006,13 +972,8 @@ End Function
 'Returns the Window Handle for a UserForm
 'https://docs.microsoft.com/en-us/windows/desktop/api/shlwapi/nf-shlwapi-iunknown_getwindow
 '*******************************************************************************
-#If VBA7 Then
 Private Function GetFormHandle(ByVal objForm As MSForms.UserForm) As LongPtr
-#Else
-Private Function GetFormHandle(ByVal objForm As MSForms.UserForm) As Long
-#End If
-    #If Mac Then
-    #Else
+    #If Windows Then
         IUnknown_GetWindow objForm, VBA.VarPtr(GetFormHandle)
     #End If
 End Function
@@ -1020,14 +981,9 @@ End Function
 '*******************************************************************************
 'Returns a Window Owner's Handle
 '*******************************************************************************
-#If VBA7 Then
 Private Function GetOwnerHandle(ByVal hwnd As LongPtr) As LongPtr
-#Else
-Private Function GetOwnerHandle(ByVal hwnd As Long) As Long
-#End If
     Const GW_OWNER As Long = 4
-    #If Mac Then
-    #Else
+    #If Windows Then
         GetOwnerHandle = GetWindow(hwnd, GW_OWNER)
     #End If
 End Function
@@ -1051,11 +1007,7 @@ End Function
 '*******************************************************************************
 'Returns the String Caption of a Window identified by a handle
 '*******************************************************************************
-#If VBA7 Then
-    Private Function GetWindowCaption(ByVal hwnd As LongPtr) As String
-#Else
-    Private Function GetWindowCaption(ByVal hwnd As Long) As String
-#End If
+Private Function GetWindowCaption(ByVal hwnd As LongPtr) As String
     Dim bufferLength As Long: bufferLength = GetWindowTextLength(hwnd)
     GetWindowCaption = VBA.Space$(bufferLength)
     GetWindowText hwnd, GetWindowCaption, bufferLength + 1
@@ -1065,9 +1017,8 @@ End Function
 'Checks if the ActiveWindow is a VBE Window
 '*******************************************************************************
 Private Function IsVBEActive() As Boolean
-    #If Mac Then
-    #Else
-    IsVBEActive = VBA.InStr(1, GetWindowCaption(GetActiveWindow()) _
-        , "Microsoft Visual Basic", vbTextCompare) <> 0
+    #If Windows Then
+        IsVBEActive = VBA.InStr(1, GetWindowCaption(GetActiveWindow()) _
+                    , "Microsoft Visual Basic", vbTextCompare) <> 0
     #End If
 End Function
