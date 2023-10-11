@@ -326,6 +326,11 @@ Private Sub AddForm(ByVal uForm As MSForms.UserForm, ByVal passScrollAtMargins A
     Next frmCtrl
     subControls.Add MouseOverControl.CreateFromForm(uForm, hWndForm)
 End Sub
+Private Function MouseOverControl() As MouseOverControl
+    Static moc As MouseOverControl
+    If moc Is Nothing Then Set moc = New MouseOverControl
+    Set MouseOverControl = moc
+End Function
 
 '*******************************************************************************
 'Removes a form (by window handle) from the internal collections

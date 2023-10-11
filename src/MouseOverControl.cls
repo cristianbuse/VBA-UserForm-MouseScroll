@@ -5,7 +5,7 @@ END
 Attribute VB_Name = "MouseOverControl"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
-Attribute VB_PredeclaredId = True
+Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 '''=============================================================================
 ''' VBA UserForm MouseScroll
@@ -51,7 +51,6 @@ Attribute VB_Exposed = False
 ''    - MouseScroll: module enabling Mouse Message processing
 ''==============================================================================
 
-'@PredeclaredID
 Option Explicit
 
 'Control types (MSForms.Control or MSForms.UserForm)
@@ -280,3 +279,4 @@ Private Sub Class_Terminate()
     Set m_ToggleButton = Nothing
     Set m_UserForm = Nothing
 End Sub
+
