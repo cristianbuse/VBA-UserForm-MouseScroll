@@ -214,8 +214,7 @@ Private m_passScrollToParentAtMargins As Boolean
 'Enables mouse wheel scroll for the specified UserForm
 '*******************************************************************************
 Public Function EnableMouseScroll(ByVal uForm As MSForms.UserForm _
-    , Optional ByVal passScrollToParentAtMargins As Boolean = True _
-) As Boolean
+                                , Optional ByVal passScrollToParentAtMargins As Boolean = True) As Boolean
     If uForm Is Nothing Then Exit Function
     If Not HookMouse Then Exit Function
     '
@@ -365,7 +364,8 @@ End Sub
 '   - key_: the key being searched for
 'Does not raise errors
 '*******************************************************************************
-Private Function CollectionHasKey(ByVal coll As Collection, ByVal key_ As String) As Boolean
+Private Function CollectionHasKey(ByVal coll As Collection _
+                                , ByVal key_ As String) As Boolean
     On Error Resume Next
     coll.Item key_
     CollectionHasKey = (Err.Number = 0)
@@ -633,8 +633,7 @@ End Sub
 '*******************************************************************************
 Private Sub ListScrollY(ByVal ctrl As Object _
                       , ByRef scrollAmount As SCROLL_AMOUNT _
-                      , ByVal ctrlType As CONTROL_TYPE _
-)
+                      , ByVal ctrlType As CONTROL_TYPE)
     Dim lastTopIndex As Long: lastTopIndex = ctrl.TopIndex
     Dim newTopIndex As Long
     '
@@ -679,7 +678,8 @@ End Sub
 '*******************************************************************************
 'Vertically scroll a TextBox control
 '*******************************************************************************
-Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox, ByRef scrollAmount As SCROLL_AMOUNT)
+Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox _
+                      , ByRef scrollAmount As SCROLL_AMOUNT)
     If Not tbox.MultiLine Then
         ScrollY tbox.Parent, scrollAmount
         Exit Sub
@@ -868,7 +868,8 @@ End Sub
 '*******************************************************************************
 'Horizontally scroll a ListBox control
 '*******************************************************************************
-Private Sub ListScrollX(ByVal lbox As MSForms.Control, ByRef scrollAmount As SCROLL_AMOUNT)
+Private Sub ListScrollX(ByVal lbox As MSForms.Control _
+                      , ByRef scrollAmount As SCROLL_AMOUNT)
     Const WM_KEYDOWN As Long = &H100
     Const VK_LEFT = &H25
     Const VK_RIGHT = &H27
