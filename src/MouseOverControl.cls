@@ -37,12 +37,15 @@ Attribute VB_Exposed = False
 ''
 ''==============================================================================
 '' Description:
-''    This object holds a single reference to a MSForms.UserForm or a
-''       MSForms.Control that is capable of having a MouseMove event.
-''    The reference is set using the InitFromControl method and can be any of
-''       the 13 types listed below.
-''    When the MouseMove event is triggered, the hovered control is passed to
-''       the SetHoveredControl method in the MouseScroll module.
+''    - This object holds a single reference to a MSForms.UserForm or a
+''      MSForms.Control that is capable of having a MouseMove event
+''    - The reference is set using the InitFromControl method and can be any of
+''      the 13 types listed below
+''    - When the MouseMove event is triggered, the hovered control is passed to
+''      the SetHoveredControl method in the MouseScroll module
+''    - This class is also used as an asyncronous callback via the Terminate
+'       event. In this case events are not used. This choice removed the need
+''      to use a new class just for the Terminate event
 '' Notes:
 ''    This class implements Scroll events for the container types (frame, form
 ''       and multiPage) in order to supress any scrolls that are related to the
