@@ -3,6 +3,7 @@ Option Explicit
 
 Sub ShowDemoForm()
     With New DemoForm
-        .Show vbModal
+        .Caption = "MODELESS form"
+        .Show vbModeless
     End With
 End Sub

@@ -81,23 +81,6 @@ Attribute m_ToggleButton.VB_VarHelpID = -1
 Private WithEvents m_UserForm As MSForms.UserForm
 Attribute m_UserForm.VB_VarHelpID = -1
 
-#Const DETECT_COMMON_CONTROLS = 0 'Turn to 1 to detect ListView controls
-#Const DETECT_INTERNET_CONTROLS = 0 'Turn to 1 to detect WebBrowser controls
-
-#If DETECT_COMMON_CONTROLS Then
-Private WithEvents m_ListView As MSComctlLib.ListView
-Attribute m_ListView.VB_VarHelpID = -1
-Private WithEvents m_TreeView As MSComctlLib.TreeView
-Attribute m_TreeView.VB_VarHelpID = -1
-#End If
-
-#If DETECT_INTERNET_CONTROLS Then
-Private WithEvents m_WebBrowser As SHDocVw.WebBrowser
-Attribute m_WebBrowser.VB_VarHelpID = -1
-Private WithEvents m_HTMLDocument As MSHTML.HTMLDocument
-Attribute m_HTMLDocument.VB_VarHelpID = -1
-#End If
-
 'Late-binded control/form
 Private m_control As Object
 
@@ -106,6 +89,8 @@ Private m_control As Object
 #Else
     Private m_hWndForm As Long
 #End If
+
+Private m_isCallback As Boolean
 
 #If VBA7 Then
 Public Function CreateFromControl(ByVal formControl As MSForms.Control, ByVal hWndForm As LongPtr) As MouseOverControl
@@ -161,14 +146,6 @@ Public Sub InitFromControl(ByVal formControl As MSForms.Control, ByVal hWndForm 
             Set m_TextBox = formControl
         Case "ToggleButton"
             Set m_ToggleButton = formControl
-        Case Else
-            #If DETECT_COMMON_CONTROLS Then
-            If TypeName(formControl) Like "ListView*" Then Set m_ListView = formControl
-            If TypeName(formControl) Like "TreeView*" Then Set m_TreeView = formControl
-            #End If
-            #If DETECT_INTERNET_CONTROLS Then
-            If TypeName(formControl) Like "WebBrowser*" Then Set m_WebBrowser = formControl
-            #End If
     End Select
 End Sub
 
@@ -193,14 +170,6 @@ Private Sub m_CommandButton_MouseMove(ByVal Button As Integer, ByVal Shift As In
     SetHoveredControl Me
 End Sub
 Private Sub m_Frame_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_WebBrowser_NavigateComplete2(ByVal pDisp As Object, URL As Variant)
-    #If DETECT_INTERNET_CONTROLS Then
-    Set m_HTMLDocument = m_WebBrowser.Document
-    #End If
-End Sub
-Private Sub m_HTMLDocument_onmousemove()
     SetHoveredControl Me
 End Sub
 Private Sub m_Image_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
@@ -228,9 +197,6 @@ Private Sub m_TextBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer,
     SetHoveredControl Me
 End Sub
 Private Sub m_ToggleButton_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_TreeView_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As stdole.OLE_XPOS_PIXELS, ByVal y As stdole.OLE_YPOS_PIXELS)
     SetHoveredControl Me
 End Sub
 Private Sub m_UserForm_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
@@ -264,19 +230,10 @@ Public Property Get FormHandle() As Long
     FormHandle = m_hWndForm
 End Property
 
-Private Sub Class_Terminate()
-    Set m_CheckBox = Nothing
-    Set m_ComboBox = Nothing
-    Set m_CommandButton = Nothing
-    Set m_Frame = Nothing
-    Set m_Image = Nothing
-    Set m_Label = Nothing
-    Set m_ListBox = Nothing
-    Set m_MultiPage = Nothing
-    Set m_OptionButton = Nothing
-    Set m_TabStrip = Nothing
-    Set m_TextBox = Nothing
-    Set m_ToggleButton = Nothing
-    Set m_UserForm = Nothing
-End Sub
+Public Property Let IsAsyncCallback(ByVal newValue As Boolean)
+    m_isCallback = newValue
+End Property
 
+Private Sub Class_Terminate()
+    If m_isCallback Then ProcessMouseData
+End Sub

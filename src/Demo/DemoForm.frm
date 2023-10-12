@@ -1,7 +1,7 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} DemoForm 
    Caption         =   "UserForm1"
-   ClientHeight    =   4515
+   ClientHeight    =   4590
    ClientLeft      =   120
    ClientTop       =   465
    ClientWidth     =   13215
@@ -39,7 +39,21 @@ End Sub
 Private Sub CommandButton3_Click()
     With New DemoForm
         .Top = Me.Top + 30
+        .Caption = "MODAL form"
         .Show vbModal
+    End With
+End Sub
+
+Private Sub CommandButton5_Click()
+    With New DemoForm
+        .Top = Me.Top + 30
+        On Error Resume Next
+        .Caption = "MODELESS form"
+        .Show vbModeless
+        If Err.Number <> 0 Then
+            MsgBox Err.Description, vbInformation, "Cannot display"
+        End If
+        On Error GoTo 0
     End With
 End Sub
 
@@ -66,6 +80,9 @@ Private Sub AddDemoData()
     Next i
 End Sub
 
-Private Sub UserForm_Terminate()
-    DisableMouseScroll Me
+Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    If CloseMode = vbFormControlMenu Then
+        Cancel = True
+        Me.Hide
+    End If
 End Sub

@@ -1,8 +1,12 @@
 # VBA UserForm MouseScroll
 
-MouseScroll is a VBA Project that allows Mouse Wheel Scrolling on MSForms Controls and Userforms but can also be extended for clicks, double-clicks and movement inputs.
+MouseScroll is a VBA Project that allows Mouse Wheel Scrolling on MSForms Controls and Userforms.
 
-Multiple forms are tracked simultaneously. Just call the ```EnableMouseScroll``` for each form.
+- Multiple forms are tracked simultaneously. Just call the ```EnableMouseScroll``` for each form
+- Both **MODAL** and **MODELESS** forms are supported (starting **12-Oct-2023**)!
+- Debugging while mouse is hooked is now supported (starting **12-Oct-2023**)!
+- This library can be extended for clicks, double-clicks and movement inputs
+- Both **vertical** and **horizontal** scroll are supported. Hold down *Shift* key for horizontal scroll and *Ctrl* key for Zoom
 
 ## Installation
 
@@ -27,28 +31,19 @@ Private Sub UserForm_Initialize()
 End Sub
 ```
 
-Not needed, but the following code can be added in the Form's Terminate Event for extra safety:
+Not needed, but the following code can be added in the Form's Terminate Event:
 ```VBA
 Private Sub UserForm_Terminate()
     DisableMouseScroll Me
 End Sub
 ```
+Tracking of forms is done automatically by checking if window is still valid and if the reference count of the form's object has any references left (except the internal ones used for raising events).
 
 ## Notes
-* Hold Shift for Horizontal Scroll and Ctrl for Zoom
-* The Mouse Hook will not work with Modeless Forms (Modal only)
-* No need to call the ```DisableMouseScroll``` method. It will be called automatically (from the MouseScroll.bas module) when the Form's Window is destroyed
-* Multiple forms are now tracked simultaneously and the mouse is unhooked automatically only when no forms are being tracked
 * You can download the available Demo Workbook for a quick start
 
 ## Other Controls
-* ```ListView```, ```TreeView``` control
-     - Requires a reference to Microsoft Windows Common Controls
-     - The value of the compiler constant ```DETECT_COMMON_CONTROLS``` (inside MouseOverControl.cls) needs to be set to a value of 1
-* ```WebBrowser``` control
-     - Requires a reference to Microsoft Internet Controls for the main control
-     - Requires a reference to Microsoft HTML Object Library for the HTMLDocument control that tracks the ```onmousemove``` event
-     - The value of the compiler constant ```DETECT_INTERNT_CONTROLS``` (inside MouseOverControl.cls) needs to be set to a value of 1
+* ```ListView```, ```TreeView```, ```WebBrowser``` etc. controls are supported without need for any changes to the code
 
 ## License
 MIT License

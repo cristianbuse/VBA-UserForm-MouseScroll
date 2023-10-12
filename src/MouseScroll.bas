@@ -30,33 +30,32 @@ Attribute VB_Name = "MouseScroll"
 ''==============================================================================
 '' Description:
 ''    Allows forms and form controls to be scrolled using the mouse wheel.
+''    Works with both MODAL and MODELESS UserForms!
 ''    Simultaneoulsy tracks all forms that called the EnableMouseScroll method!
-''
-''    Installs a Mouse Hook by calling SetWindowsHookEx API with ID WH_MOUSE = 7
-''       and the address of the MouseProc callback function.
-''    The Mouse Hook is active as long as there is at least one form that
-''       previously enabled scrolling (i.e. called EnableMouseScroll method)
-''    Another option would be to use ID WH_MOUSE_LL = 14 which would require a
-''       LowLevelMouseProc callback but unlike the WH_MOUSE hook which is local
-''       (hooked on the current thread only) the WH_MOUSE_LL hook is actually
-''       global and very slow.
-''    The system calls the MouseProc function whenever the Excel Application
-''       calls the GetMessage or PeekMessage functions and there is a mouse
-''       message to be processed.
-''    This module also holds a collection of MouseOverControls that call back
-''       the SetHoveredControl method in this module whenever a MouseMove event
-''       is triggered.
-'' Notes:
-''    MouseProc hook works properly with MODAL UserForms only!
-''    Modeless Forms will cause unhooking! This is done on purpose to prevent
-''       crashes!
-''    No need to call DisableMouseScroll method. This is done automatically!
-''       However, in Ms Word is recommanded to call it from the form's terminate
-''       event (i.e. UserForm_Terminate)
 ''    Hold down SHIFT key when scrolling the mouse wheel, for Horizontal Scroll!
 ''    Hold down CTRL key when scrolling the mouse wheel, for Zoom!
-'' Warning:
-''    Do not debug code while the hook is active to avoid crashes!
+'' Notes:
+''    - Installs a Mouse Hook by calling SetWindowsHookEx API with ID
+''      WH_MOUSE = 7 and the address of the MouseProc callback function
+''    - The Mouse Hook is active as long as there is at least one form that
+''      previously enabled scrolling (i.e. called EnableMouseScroll method)
+''      Relevant forms are tracked automatically by checking if the form's main
+''      window is still enabled and if there are any references left pointing
+'       to the form's object. When all the forms that called EnableMouseScroll
+''      are destroyed then the mouse hook is removed automatically. No need to
+''      call DisableMouseScroll method although you could do it in the form's
+''      Terminate event if you wish to
+''    - Another option would be to use ID WH_MOUSE_LL = 14 which would require a
+''      LowLevelMouseProc callback but unlike the WH_MOUSE hook which is local
+''      (hooked on the current thread only) the WH_MOUSE_LL hook is actually
+''      global and very slow
+''    - The system calls the MouseProc function whenever the Excel Application
+''      calls the GetMessage or PeekMessage functions and there is a mouse
+''      message to be processed
+''    - This module also holds a collection of MouseOverControls that call back
+''      the SetHoveredControl method in this module whenever a MouseMove event
+''      is triggered
+''    - You can debug code safely while hook is on
 '' Requires:
 ''    - MouseOverControl: Container that tracks MouseMove events
 ''==============================================================================
@@ -66,16 +65,21 @@ Option Private Module
 
 #Const Windows = (Mac = 0)
 
+Private Type POINTAPI
+    x As Long
+    y As Long
+End Type
+
 'API declarations
 #If Windows Then
     #If VBA7 Then
         Private Declare PtrSafe Function CallNextHookEx Lib "user32" (ByVal hHook As LongPtr, ByVal ncode As Long, ByVal wParam As LongPtr, lParam As Any) As LongPtr
+        Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
+        Private Declare PtrSafe Function GetClassName Lib "user32" Alias "GetClassNameA" (ByVal hwnd As LongPtr, ByVal lpClassName As String, ByVal nMaxCount As Long) As Long
+        Private Declare PtrSafe Function GetCursorPos Lib "user32" (lpPoint As POINTAPI) As Long
         Private Declare PtrSafe Function GetCurrentThreadId Lib "kernel32" () As Long
         Private Declare PtrSafe Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
-        Private Declare PtrSafe Function GetActiveWindow Lib "user32" () As LongPtr
-        Private Declare PtrSafe Function GetWindow Lib "user32" (ByVal hwnd As LongPtr, ByVal wCmd As Long) As LongPtr
-        Private Declare PtrSafe Function GetWindowText Lib "user32" Alias "GetWindowTextA" (ByVal hwnd As LongPtr, ByVal lpString As String, ByVal cch As Long) As Long
-        Private Declare PtrSafe Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" (ByVal hwnd As LongPtr) As Long
+        Private Declare PtrSafe Function IsChild Lib "user32" (ByVal hWndParent As LongPtr, ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IsWindowEnabled Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As LongPtr) As Long
@@ -83,14 +87,19 @@ Option Private Module
         Private Declare PtrSafe Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As LongPtr, ByVal hmod As LongPtr, ByVal dwThreadId As Long) As LongPtr
         Private Declare PtrSafe Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
         Private Declare PtrSafe Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As LongPtr) As Long
+        #If Win64 Then
+            Private Declare PtrSafe Function WindowFromPoint Lib "user32" (ByVal Point As LongLong) As LongPtr
+        #Else
+            Private Declare PtrSafe Function WindowFromPoint Lib "user32" (ByVal xPoint As Long, ByVal yPoint As Long) As LongPtr
+        #End If
     #Else
         Private Declare Function CallNextHookEx Lib "user32" (ByVal hHook As Long, ByVal ncode As Long, ByVal wParam As Long, lParam As Any) As Long
+        Private Declare Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As Long)
+        Private Declare Function GetClassName Lib "user32" Alias "GetClassNameA" (ByVal hwnd As Long, ByVal lpClassName As String, ByVal nMaxCount As Long) As Long
+        Private Declare Function GetCursorPos Lib "user32" (lpPoint As POINTAPI) As Long
         Private Declare Function GetCurrentThreadId Lib "kernel32" () As Long
         Private Declare Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
-        Private Declare Function GetActiveWindow Lib "user32" () As Long
-        Private Declare Function GetWindow Lib "user32" (ByVal hwnd As Long, ByVal wCmd As Long) As Long
-        Private Declare Function GetWindowText Lib "user32" Alias "GetWindowTextA" (ByVal hwnd As Long, ByVal lpString As String, ByVal cch As Long) As Long
-        Private Declare Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" (ByVal hwnd As Long) As Long
+        Private Declare Function IsChild Lib "user32" (ByVal hWndParent As Long, ByVal hwnd As Long) As Long
         Private Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function IsWindowEnabled Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As Long) As Long
@@ -98,6 +107,7 @@ Option Private Module
         Private Declare Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As Long, ByVal hmod As Long, ByVal dwThreadId As Long) As Long
         Private Declare Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
         Private Declare Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As Long) As Long
+        Private Declare Function WindowFromPoint Lib "user32" (ByVal xPoint As Long, ByVal yPoint As Long) As Long
     #End If
 #End If
 
@@ -107,16 +117,22 @@ Option Private Module
     End Enum
 #End If
 
+#If Win64 Then
+    Public Const PTR_SIZE As Long = 8
+    Private Type LLTemplate
+        ll As LongLong
+    End Type
+    Public Const vbLongPtr As Long = vbLongLong
+#Else
+    Public Const PTR_SIZE As Long = 4
+    Public Const vbLongLong As Long = 20 'Useful in Select Case logic
+    Public Const vbLongPtr As Long = vbLong
+#End If
+
 'Id of the hook procedure to be installed with SetWindowsHookExA for MouseProc
 Private Const WH_MOUSE As Long = 7
 
-'Necessary API structs and constants for MouseProc Callback
 'https://msdn.microsoft.com/en-us/library/windows/desktop/ms644988(v=vs.85).aspx
-Private Type POINTAPI
-    x As Long
-    y As Long
-End Type
-
 Private Type MOUSEHOOKSTRUCT
     pt As POINTAPI
     hwnd As LongPtr
@@ -161,11 +177,9 @@ Private Type SCROLL_AMOUNT
     pages As Single
 End Type
 
-'m_hHookMouse - Hook handle obtained from a previous call to SetWindowsHookEx
-'   - Used when calling UnhookWindowsHookEx in order to remove the hook
-'m_hWndMainOwner - Main UserForm's Owner Handle (to track Modal state)
+'Hook handle obtained from a previous call to SetWindowsHookEx
+'Used when calling UnhookWindowsHookEx in order to remove the hook
 Private m_hHookMouse As LongPtr
-Private m_hWndMainOwner As LongPtr
 
 'Window handles for all forms with scrolling enabled. Always instantiated
 Private m_hWndAllForms As New Collection
@@ -182,9 +196,6 @@ Private m_lastHoveredControl As MouseOverControl
 'The last ComboBox that was used
 Private m_lastCombo As MSForms.ComboBox
 Private m_isLastComboOn As Boolean
-
-'The previous state of Application.EnableCancelKey (if available)
-Private m_enableCancelKey As Long
 
 'The Scrollable Control Types/Categories
 Private Enum CONTROL_TYPE
@@ -209,6 +220,11 @@ End Enum
 'If the current hovered control cannot scroll anymore, then pass (or not) the
 '   scroll to the Parent Control/Form. Variable set in SetHoveredControl()
 Private m_passScrollToParentAtMargins As Boolean
+
+'Storage for arguments received in the last mouse hook call
+Private m_ncode As Long
+Private m_wParam As Long
+Private m_lParam As MOUSEHOOKSTRUCTEX
 
 '*******************************************************************************
 'Enables mouse wheel scroll for the specified UserForm
@@ -251,21 +267,22 @@ Private Function HookMouse() As Boolean
         Exit Function
     End If
     '
-    Dim isHookSuccessful As Boolean
-    '
     #If Windows Then
-        m_hHookMouse = SetWindowsHookEx(WH_MOUSE, AddressOf MouseProc, 0, GetCurrentThreadId())
+        m_hHookMouse = SetWindowsHookEx(WH_MOUSE, GetCallbackPtr(), 0, GetCurrentThreadId())
     #End If
-    isHookSuccessful = (m_hHookMouse <> 0)
-    If isHookSuccessful Then
-        On Error Resume Next
-        m_enableCancelKey = CallByName(Application, "EnableCancelKey", VbGet)
-        CallByName Application, "EnableCancelKey", VbLet, 0
-        On Error GoTo 0
-        Debug.Print "Mouse hooked " & Now
-    End If
     '
-    HookMouse = isHookSuccessful
+    HookMouse = (m_hHookMouse <> 0)
+End Function
+Private Function GetCallbackPtr() As LongPtr
+    Dim ptr As LongPtr: ptr = VBA.Int(AddressOf MouseProc)
+    #If Win64 Then 'Fake callback signature to force fix stack parameters
+        Dim fakePtr As LongPtr: fakePtr = VBA.Int(AddressOf FakeCallback)
+        Const delegateOffset As Long = 52
+        '
+        CopyMemory ByVal fakePtr + delegateOffset, ByVal ptr + delegateOffset, PTR_SIZE
+        ptr = fakePtr
+    #End If
+    GetCallbackPtr = ptr
 End Function
 
 '*******************************************************************************
@@ -276,18 +293,44 @@ Private Sub UnHookMouse()
         #If Windows Then
             UnhookWindowsHookEx m_hHookMouse
         #End If
-        On Error Resume Next
-        CallByName Application, "EnableCancelKey", VbLet, m_enableCancelKey
-        On Error GoTo 0
         m_hHookMouse = 0
         Set m_hWndAllForms = Nothing
         Set m_controls = Nothing
         Set m_passScrollColl = Nothing
         Set m_lastHoveredControl = Nothing
         Set m_lastCombo = Nothing
-        Debug.Print "Mouse unhooked " & Now
     End If
 End Sub
+
+'*******************************************************************************
+'Method used only for fixing the stack frame parameters for the actual callback
+'Not called directly
+'*******************************************************************************
+#If Win64 Then
+Private Function FakeCallback() As LongPtr
+    UnHookMouse
+End Function
+#End If
+
+'*******************************************************************************
+'Callback function - asynchronously defers mouse messages to 'ProcessMouseData'
+'
+'WARNING! You can add breakpoints and step through code while debugging but do
+'   NOT press the IDE 'Reset' button while within the scope of this method
+'*******************************************************************************
+Private Function MouseProc(ByVal ncode As Long _
+                         , ByVal wParam As Long _
+                         , ByRef lParam As MOUSEHOOKSTRUCTEX) As LongPtr
+    Dim asyncClass As MouseOverControl: Set asyncClass = New MouseOverControl
+    '
+    asyncClass.IsAsyncCallback = True 'Calls ProcessMouseData on Terminate
+    m_ncode = ncode
+    m_wParam = wParam
+    m_lParam = lParam
+    UnhookWindowsHookEx m_hHookMouse
+    m_hHookMouse = 0
+    MouseProc = CallNextHookEx(0, ncode, wParam, ByVal lParam)
+End Function
 
 '*******************************************************************************
 'Adds the form handle to m_hWndAllForms collection
@@ -309,11 +352,6 @@ Private Sub AddForm(ByVal uForm As MSForms.UserForm, ByVal passScrollAtMargins A
     End If
     m_passScrollColl.Add passScrollAtMargins, keyValue
     '
-    If m_controls.Count = 0 Then
-        'Keep track of the owner of the first form only
-        m_hWndMainOwner = GetOwnerHandle(hWndForm)
-    End If
-    '
     Dim subControls As Collection
     Set subControls = New Collection
     m_controls.Add subControls, keyValue
@@ -323,7 +361,7 @@ Private Sub AddForm(ByVal uForm As MSForms.UserForm, ByVal passScrollAtMargins A
     For Each frmCtrl In uForm.Controls
         subControls.Add MouseOverControl.CreateFromControl(frmCtrl, hWndForm)
     Next frmCtrl
-    subControls.Add MouseOverControl.CreateFromForm(uForm, hWndForm)
+    subControls.Add MouseOverControl.CreateFromForm(uForm, hWndForm), keyValue
 End Sub
 Private Function MouseOverControl() As MouseOverControl
     Static moc As MouseOverControl
@@ -341,7 +379,7 @@ Private Sub RemoveForm(ByVal hWndForm As LongPtr)
         m_controls.Remove keyValue
         m_passScrollColl.Remove keyValue
     End If
-    If m_hWndAllForms.Count = 0 Then UnHookMouse
+    If m_hWndAllForms.count = 0 Then UnHookMouse
 End Sub
 
 '*******************************************************************************
@@ -351,10 +389,41 @@ Private Sub RemoveDestroyedForms()
     Dim v As Variant
     '
     For Each v In m_hWndAllForms
-        If Not CBool(IsWindow(v)) Then
+        If CBool(IsWindow(v)) Then
+            Dim s As String:      s = CStr(v)
+            Dim iUnk As IUnknown: Set iUnk = m_controls(s)(s).GetControl
+            Dim ptr As LongPtr:   ptr = ObjPtr(iUnk)
+            Dim refCount As Long
+            Static memValue As Variant
+            Static remoteVT As Variant
+            Const VT_BYREF As Long = &H4000
+            '
+            Set iUnk = Nothing
+            If IsEmpty(memValue) Then
+                remoteVT = VarPtr(memValue)
+                CopyMemory remoteVT, vbInteger + VT_BYREF, 2
+            End If
+            '
+            'Faster (VBA7) than: CopyMemory refCount, ByVal ptr + PTR_SIZE, 4
+            memValue = ptr + PTR_SIZE
+            RemoteAssign remoteVT, vbLong + VT_BYREF, refCount, memValue
+            If refCount = 2 Then RemoveForm v
+        Else
             RemoveForm v
         End If
     Next v
+End Sub
+'This method assures the required redirection for both the remote varType and
+'   the remote value at the same time thus removing any additional stack frames
+'It can be used to both read from and write to memory by swapping the order of
+'   the last 2 parameters
+Private Sub RemoteAssign(ByRef remoteVT As Variant, _
+                         ByVal newVT As VbVarType, _
+                         ByRef targetVariable As Variant, _
+                         ByRef newValue As Variant)
+    remoteVT = newVT
+    targetVariable = newValue
+    remoteVT = vbLongPtr 'Stop linking to remote address, for safety
 End Sub
 
 '*******************************************************************************
@@ -400,99 +469,81 @@ End Sub
 'Callback hook function - monitors mouse messages
 '*******************************************************************************
 #If Windows Then
-Private Function MouseProc(ByVal ncode As Long _
-                         , ByVal wParam As Long _
-                         , ByRef lParam As MOUSEHOOKSTRUCTEX) As LongPtr
-    'Unhook if a VBE window is active
-    If IsVBEActive Then GoTo Unhook
-    '
+Public Sub ProcessMouseData()
     RemoveDestroyedForms
+    If m_hWndAllForms.count = 0 Then
+        UnHookMouse
+        Exit Sub
+    End If
     '
-    'Unhook if no form handles
-    If m_hWndAllForms.Count = 0 Then GoTo Unhook
+    If m_lastHoveredControl Is Nothing Then GoTo ProcessDisplay
+    Dim fHWnd As LongPtr: fHWnd = m_lastHoveredControl.FormHandle
     '
-    'Unhook if the top Owner is active (Modeless Form)
-    If CBool(IsWindowEnabled(m_hWndMainOwner)) Then GoTo Unhook
+    If Not CBool(IsWindowEnabled(fHWnd)) Then GoTo ProcessDisplay
+    If Not m_isLastComboOn Then
+        Dim pHWnd As LongPtr: pHWnd = GetWindowUnderCursor()
+        Dim className As String: className = Space$(&HFF)
+        '
+        If IsChild(fHWnd, pHWnd) = 0 Then GoTo ProcessDisplay
+        className = Left$(className, GetClassName(pHWnd, className, Len(className)))
+        If Not (className Like "F3 Server*") Then GoTo ProcessDisplay
+    End If
     '
-    If m_lastHoveredControl Is Nothing Then GoTo NextHook
-    'Ignore input if Window matching last hovered control is not Active
-    If Not CBool(IsWindowEnabled(m_lastHoveredControl.FormHandle)) Then GoTo NextHook
-    '
-    'The nCode could either be negative, HC_ACTION or HC_NOREMOVE
-    'HC_NOREMOVE is passed when the Application calls the PeekMessage function
-    '   with a PM_NOREMOVE flag which means that the mouse message has not been
-    '   removed from the message queue
-    'In case of negative or HC_NOREMOVE nCode the function will pass the message
-    '   to the CallNextHookEx function and return it's value
-    If ncode = HC_ACTION Then
-        If wParam = WM_MOUSEWHEEL Or wParam = WM_MOUSEHWHEEL Then
-            If TypeName(m_lastHoveredControl.GetControl) Like "ListView*" Then GoTo NextHook
-            If TypeName(m_lastHoveredControl.GetControl) Like "TreeView*" Then GoTo NextHook
-            If TypeName(m_lastHoveredControl.GetControl) Like "WebBrowser*" Then GoTo NextHook
-            '
-            Dim scrollAmount As SCROLL_AMOUNT
-            Dim scrollAction As SCROLL_ACTION
-            '
-            scrollAmount = GetScrollAmount(GetWheelDelta(lParam.mouseData))
-            scrollAction = GetScrollAction(yWheel:=(wParam = WM_MOUSEWHEEL))
-            '
-            If m_isLastComboOn Then
-                m_passScrollToParentAtMargins = False
-                Call ScrollY(m_lastCombo, scrollAmount)
-            Else
-                Select Case scrollAction
-                Case saScrollY
-                    Call ScrollY(m_lastHoveredControl.GetControl, scrollAmount)
-                Case saScrollX
-                    If m_isLastComboOn Then GoTo NextHook
-                    Call ScrollX(m_lastHoveredControl.GetControl, scrollAmount)
-                Case saZoom
-                    If m_isLastComboOn Then GoTo NextHook
-                    Call Zoom(m_lastHoveredControl.GetControl, scrollAmount)
-                End Select
-            End If
-            '
-            MouseProc = -1
-            Exit Function
+    If m_wParam = WM_MOUSEWHEEL Or m_wParam = WM_MOUSEHWHEEL Then
+        Dim scrollAmount As SCROLL_AMOUNT
+        Dim scrollAction As SCROLL_ACTION
+        '
+        scrollAmount = GetScrollAmount(GetWheelDelta(m_lParam.mouseData))
+        scrollAction = GetScrollAction(yWheel:=(m_wParam = WM_MOUSEWHEEL))
+        '
+        If m_isLastComboOn Then
+            m_passScrollToParentAtMargins = False
+            Call ScrollY(m_lastCombo, scrollAmount)
         Else
-            'Here you could implement logic for:
-            'WM_MOUSEMOVE
-            'WM_LBUTTONDOWN
-            'WM_LBUTTONUP
-            'WM_LBUTTONDBLCLK
-            'WM_RBUTTONDOWN
-            'WM_RBUTTONUP
-            'WM_RBUTTONDBLCLK
-            'WM_MBUTTONDOWN
-            'WM_MBUTTONUP
-            'WM_MBUTTONDBLCLK
+            Select Case scrollAction
+            Case saScrollY
+                Call ScrollY(m_lastHoveredControl.GetControl, scrollAmount)
+            Case saScrollX
+                If m_isLastComboOn Then GoTo ProcessDisplay
+                Call ScrollX(m_lastHoveredControl.GetControl, scrollAmount)
+            Case saZoom
+                If m_isLastComboOn Then GoTo ProcessDisplay
+                Call Zoom(m_lastHoveredControl.GetControl, scrollAmount)
+            End Select
+        End If
+    Else
+        'Here you could implement logic for:
+        'WM_MOUSEMOVE
+        'WM_LBUTTONDOWN
+        'WM_LBUTTONUP
+        'WM_LBUTTONDBLCLK
+        'WM_RBUTTONDOWN
+        'WM_RBUTTONUP
+        'WM_RBUTTONDBLCLK
+        'WM_MBUTTONDOWN
+        'WM_MBUTTONUP
+        'WM_MBUTTONDBLCLK
+        '
+        'Mouse side buttons example:
+        If m_wParam = WM_XBUTTONDOWN Then
+            Const HIGH_VALUE  As Single = 10000000
             '
-            'Mouse side buttons example:
-            If wParam = WM_XBUTTONDOWN Then
-                Const HIGH_VALUE  As Single = 10000000
-                '
-                If lParam.mouseData = &H20000 Then
-                    scrollAmount.lines = HIGH_VALUE
-                    ScrollY m_lastHoveredControl.GetControl, scrollAmount
-                ElseIf lParam.mouseData = &H10000 Then
-                    scrollAmount.lines = -HIGH_VALUE
-                    ScrollY m_lastHoveredControl.GetControl, scrollAmount
-                End If
-                MouseProc = -1
-                Exit Function
+            If m_lParam.mouseData = &H20000 Then
+                scrollAmount.lines = HIGH_VALUE
+                ScrollY m_lastHoveredControl.GetControl, scrollAmount
+            ElseIf m_lParam.mouseData = &H10000 Then
+                scrollAmount.lines = -HIGH_VALUE
+                ScrollY m_lastHoveredControl.GetControl, scrollAmount
             End If
-            '
-            'For now, just passing the message to (CallNextHookEx)
         End If
     End If
     '
-NextHook:
-    MouseProc = CallNextHookEx(0, ncode, wParam, ByVal lParam)
-Exit Function
-Unhook:
-    UnHookMouse
-    GoTo NextHook
-End Function
+ProcessDisplay:
+    DoEvents
+    If m_hHookMouse = 0 Then
+        m_hHookMouse = SetWindowsHookEx(WH_MOUSE, GetCallbackPtr(), 0, GetCurrentThreadId())
+    End If
+End Sub
 #End If
 
 '*******************************************************************************
@@ -980,17 +1031,7 @@ End Function
 '*******************************************************************************
 Private Function GetFormHandle(ByVal objForm As MSForms.UserForm) As LongPtr
     #If Windows Then
-        IUnknown_GetWindow objForm, VBA.VarPtr(GetFormHandle)
-    #End If
-End Function
-
-'*******************************************************************************
-'Returns a Window Owner's Handle
-'*******************************************************************************
-Private Function GetOwnerHandle(ByVal hwnd As LongPtr) As LongPtr
-    Const GW_OWNER As Long = 4
-    #If Windows Then
-        GetOwnerHandle = GetWindow(hwnd, GW_OWNER)
+        IUnknown_GetWindow objForm, VarPtr(GetFormHandle)
     #End If
 End Function
 
@@ -1011,20 +1052,18 @@ Private Function IsControlKeyDown() As Boolean
 End Function
 
 '*******************************************************************************
-'Returns the String Caption of a Window identified by a handle
+'Returns the handle for the window currently under cursor
 '*******************************************************************************
-Private Function GetWindowCaption(ByVal hwnd As LongPtr) As String
-    Dim bufferLength As Long: bufferLength = GetWindowTextLength(hwnd)
-    GetWindowCaption = VBA.Space$(bufferLength)
-    GetWindowText hwnd, GetWindowCaption, bufferLength + 1
-End Function
-
-'*******************************************************************************
-'Checks if the ActiveWindow is a VBE Window
-'*******************************************************************************
-Private Function IsVBEActive() As Boolean
-    #If Windows Then
-        IsVBEActive = VBA.InStr(1, GetWindowCaption(GetActiveWindow()) _
-                    , "Microsoft Visual Basic", vbTextCompare) <> 0
+#If Windows Then
+Private Function GetWindowUnderCursor() As LongPtr
+    Dim pt As POINTAPI: GetCursorPos pt
+    '
+    #If Win64 Then
+        Dim llt As LLTemplate
+        LSet llt = pt
+        GetWindowUnderCursor = WindowFromPoint(llt.ll)
+    #Else
+        GetWindowUnderCursor = WindowFromPoint(pt.x, pt.y)
     #End If
 End Function
+#End If
