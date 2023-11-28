@@ -15,6 +15,8 @@ Just import the following 2 code modules in your VBA Project:
 * [**MouseScroll.bas**](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/master/src/MouseScroll.bas)
 * [**MouseOverControl.cls**](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/master/src/MouseOverControl.cls)
 
+To avoid any issues with the ```CR``` and ```LF``` characters, it is best to download the available [ZIP](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/archive/refs/heads/master.zip) and then import the modules from there.
+
 ## Usage
 In your Modal Userform use:
 ```vba
