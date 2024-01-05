@@ -470,6 +470,7 @@ End Sub
 '*******************************************************************************
 #If Windows Then
 Public Sub ProcessMouseData()
+    DoEvents 'To allow for form termination
     RemoveDestroyedForms
     If m_hWndAllForms.count = 0 Then
         UnHookMouse
