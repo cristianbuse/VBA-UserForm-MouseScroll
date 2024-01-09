@@ -6,7 +6,7 @@ MouseScroll is a VBA Project that allows Mouse Wheel Scrolling on MSForms Contro
 - Both **MODAL** and **MODELESS** forms are supported (starting **12-Oct-2023**)!
 - Debugging while the mouse is hooked is now supported (starting **12-Oct-2023**)!
 - This library can be extended for clicks, double-clicks and movement inputs
-- Both **vertical** and **horizontal** scroll are supported. Hold down *Shift* for horizontal scroll and *Ctrl* for Zoom
+- Both **vertical** and **horizontal** scroll are supported. Hold down <kbd>Shift</kbd> for horizontal scroll and <kbd>Ctrl</kbd> for Zoom
 
 ## Installation
 
