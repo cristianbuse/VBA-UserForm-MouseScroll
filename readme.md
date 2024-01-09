@@ -4,13 +4,13 @@ MouseScroll is a VBA Project that allows Mouse Wheel Scrolling on MSForms Contro
 
 - Multiple forms are tracked simultaneously. Just call the ```EnableMouseScroll``` for each form
 - Both **MODAL** and **MODELESS** forms are supported (starting **12-Oct-2023**)!
-- Debugging while mouse is hooked is now supported (starting **12-Oct-2023**)!
+- Debugging while the mouse is hooked is now supported (starting **12-Oct-2023**)!
 - This library can be extended for clicks, double-clicks and movement inputs
-- Both **vertical** and **horizontal** scroll are supported. Hold down *Shift* key for horizontal scroll and *Ctrl* key for Zoom
+- Both **vertical** and **horizontal** scroll are supported. Hold down *Shift* for horizontal scroll and *Ctrl* for Zoom
 
 ## Installation
 
-Just import the following 2 code modules in your VBA Project:
+Just import the following 2 code modules into your VBA Project:
 
 * [**MouseScroll.bas**](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/master/src/MouseScroll.bas)
 * [**MouseOverControl.cls**](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/master/src/MouseOverControl.cls)
@@ -18,11 +18,11 @@ Just import the following 2 code modules in your VBA Project:
 To avoid any issues with the ```CR``` and ```LF``` characters, it is best to download the available [ZIP](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/archive/refs/heads/master.zip) and then import the modules from there.
 
 ## Usage
-In your Modal Userform use:
+In your Userform use:
 ```vba
 EnableMouseScroll myUserForm
 ```
-For example you can use your Form's Initialize Event:
+For example, you can use your Form's Initialize Event:
 ```vba
 Private Sub UserForm_Initialize()
     Me.StartUpPosition = 0
@@ -33,19 +33,19 @@ Private Sub UserForm_Initialize()
 End Sub
 ```
 
-Not needed, but the following code can be added in the Form's Terminate Event:
+Not needed, but the following code can be added to the Form's Terminate Event:
 ```VBA
 Private Sub UserForm_Terminate()
     DisableMouseScroll Me
 End Sub
 ```
-Tracking of forms is done automatically by checking if window is still valid and if the reference count of the form's object has any references left (except the internal ones used for raising events).
+Tracking of forms is done automatically by checking if the window is still valid and if the reference count of the form's object has any references left (except the internal ones used for raising events).
 
 ## Notes
 * You can download the available Demo Workbook for a quick start
 
 ## Other Controls
-* ```ListView```, ```TreeView```, ```WebBrowser``` etc. controls are supported without need for any changes to the code
+* ```ListView```, ```TreeView```, ```WebBrowser``` etc. controls are supported without the need for any changes to the code
 
 ## License
 MIT License
