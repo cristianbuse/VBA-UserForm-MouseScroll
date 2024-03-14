@@ -524,6 +524,30 @@ Public Sub ProcessMouseData()
         'WM_MBUTTONUP
         'WM_MBUTTONDBLCLK
         '
+        'Mouse drag by scroll wheel example:
+        Static lastX As Single
+        Static lastY As Single
+        Const sLines As Long = 3 'Constant number of lines to scroll - change as needed
+        Const VK_MBUTTON As Long = &H4
+        '
+        If m_wParam = WM_MBUTTONDOWN Then
+            lastX = m_lParam.tagMOUSEHOOKSTRUCT.pt.x
+            lastY = m_lParam.tagMOUSEHOOKSTRUCT.pt.y
+        End If
+        '
+        If GetKeyState(VK_MBUTTON) And &H8000 Then
+            If IsShiftKeyDown() Then
+                scrollAmount.lines = sLines * Sgn(lastX - m_lParam.tagMOUSEHOOKSTRUCT.pt.x)
+                If m_isLastComboOn Then GoTo ProcessDisplay
+                Call ScrollX(m_lastHoveredControl.GetControl, scrollAmount)
+            Else
+                scrollAmount.lines = sLines * Sgn(lastY - m_lParam.tagMOUSEHOOKSTRUCT.pt.y)
+                Call ScrollY(m_lastHoveredControl.GetControl, scrollAmount)
+            End If
+            lastX = m_lParam.tagMOUSEHOOKSTRUCT.pt.x
+            lastY = m_lParam.tagMOUSEHOOKSTRUCT.pt.y
+        End If
+        '
         'Mouse side buttons example:
         If m_wParam = WM_XBUTTONDOWN Then
             Const HIGH_VALUE  As Single = 10000000
