@@ -78,12 +78,16 @@ End Type
         Private Declare PtrSafe Function GetClassName Lib "user32" Alias "GetClassNameA" (ByVal hwnd As LongPtr, ByVal lpClassName As String, ByVal nMaxCount As Long) As Long
         Private Declare PtrSafe Function GetCursorPos Lib "user32" (lpPoint As POINTAPI) As Long
         Private Declare PtrSafe Function GetCurrentThreadId Lib "kernel32" () As Long
+        Private Declare PtrSafe Function GetForegroundWindow Lib "user32" () As LongPtr
         Private Declare PtrSafe Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
+        Private Declare PtrSafe Function GetWindowText Lib "user32" Alias "GetWindowTextA" (ByVal hwnd As LongPtr, ByVal lpString As String, ByVal cch As Long) As Long
+        Private Declare PtrSafe Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IsChild Lib "user32" (ByVal hWndParent As LongPtr, ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IsWindowEnabled Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As LongPtr, ByVal wMsg As Long, ByVal wParam As LongPtr, ByVal lParam As LongPtr) As Long
+        Private Declare PtrSafe Function SetForegroundWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As LongPtr, ByVal hmod As LongPtr, ByVal dwThreadId As Long) As LongPtr
         Private Declare PtrSafe Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
         Private Declare PtrSafe Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As LongPtr) As Long
@@ -98,12 +102,16 @@ End Type
         Private Declare Function GetClassName Lib "user32" Alias "GetClassNameA" (ByVal hwnd As Long, ByVal lpClassName As String, ByVal nMaxCount As Long) As Long
         Private Declare Function GetCursorPos Lib "user32" (lpPoint As POINTAPI) As Long
         Private Declare Function GetCurrentThreadId Lib "kernel32" () As Long
+        Private Declare Function GetForegroundWindow Lib "user32" () As Long
         Private Declare Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
+        Private Declare Function GetWindowText Lib "user32" Alias "GetWindowTextA" (ByVal hwnd As Long, ByVal lpString As String, ByVal cch As Long) As Long
+        Private Declare Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" (ByVal hwnd As Long) As Long
         Private Declare Function IsChild Lib "user32" (ByVal hWndParent As Long, ByVal hwnd As Long) As Long
         Private Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function IsWindowEnabled Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As Long) As Long
         Private Declare Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As Long, ByVal wMsg As Long, ByVal wParam As Long, ByVal lParam As Long) As Long
+        Private Declare Function SetForegroundWindow Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As Long, ByVal hmod As Long, ByVal dwThreadId As Long) As Long
         Private Declare Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
         Private Declare Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As Long) As Long
@@ -564,11 +572,28 @@ Public Sub ProcessMouseData()
     '
 ProcessDisplay:
     DoEvents
+    'Make sure VBE is not activated as this would make the forms lose focus
+    Const VBELabel As String = "Microsoft Visual Basic for Applications*"
+    Dim foreHWnd As LongPtr: foreHWnd = GetForegroundWindow()
+    If foreHWnd <> fHWnd Then
+        If GetWindowCaption(foreHWnd) Like VBELabel Then
+            SetForegroundWindow fHWnd
+        End If
+    End If
     If m_hHookMouse = 0 Then
         m_hHookMouse = SetWindowsHookEx(WH_MOUSE, GetCallbackPtr(), 0, GetCurrentThreadId())
     End If
 End Sub
 #End If
+
+'*******************************************************************************
+'Returns the String Caption of a Window identified by a handle
+'*******************************************************************************
+Private Function GetWindowCaption(ByVal hwnd As LongPtr) As String
+    Dim bufferLength As Long: bufferLength = GetWindowTextLength(hwnd)
+    GetWindowCaption = VBA.Space$(bufferLength)
+    GetWindowText hwnd, GetWindowCaption, bufferLength + 1
+End Function
 
 '*******************************************************************************
 'Get the type of scroll action by reading Shift and Control key states
