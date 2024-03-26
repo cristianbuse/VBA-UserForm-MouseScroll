@@ -809,7 +809,7 @@ Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox _
         Next i
         Dim linesPerPage As Long: linesPerPage = i - 1
         '
-        If linesPerPage = .LineCount - 1 Then
+        If (linesPerPage = 0) Or (linesPerPage = .LineCount - 1) Then
             tbox.SelStart = selectionStart
             tbox.SelLength = selectionLength
             ScrollY tbox.Parent, scrollAmount
