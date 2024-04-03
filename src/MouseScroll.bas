@@ -61,7 +61,6 @@ Attribute VB_Name = "MouseScroll"
 ''==============================================================================
 
 Option Explicit
-Option Private Module
 
 #Const Windows = (Mac = 0)
 
