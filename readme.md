@@ -17,6 +17,10 @@ Just import the following 2 code modules into your VBA Project:
 
 To avoid any issues with the ```CR``` and ```LF``` characters, it is best to download the available [ZIP](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/archive/refs/heads/master.zip) and then import the modules from there.
 
+For anyone using specialized Mouse software please be aware that it might interfere with the mouse hook used in this project. For the following software, you only need to change some settings:
+- X-Mouse Button Control (XMBC). See fix [here](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/issues/20#issuecomment-1348040451)
+- StrokesPlus. See fix [here](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/issues/37#issuecomment-2028094854)
+
 ## Usage
 In your Userform use:
 ```vba
