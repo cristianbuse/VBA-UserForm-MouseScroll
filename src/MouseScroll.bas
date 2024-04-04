@@ -86,8 +86,8 @@ End Type
         Private Declare PtrSafe Function IsWindowEnabled Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As LongPtr, ByVal wMsg As Long, ByVal wParam As LongPtr, ByVal lParam As LongPtr) As Long
-        Private Declare PtrSafe Function SetForegroundWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
         Private Declare PtrSafe Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As LongPtr, ByVal hmod As LongPtr, ByVal dwThreadId As Long) As LongPtr
+        Private Declare PtrSafe Function ShowWindowAsync Lib "user32" (ByVal hwnd As LongPtr, ByVal nCmdShow As Long) As Long
         Private Declare PtrSafe Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
         Private Declare PtrSafe Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As LongPtr) As Long
         #If Win64 Then
@@ -110,8 +110,8 @@ End Type
         Private Declare Function IsWindowEnabled Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As Long) As Long
         Private Declare Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As Long, ByVal wMsg As Long, ByVal wParam As Long, ByVal lParam As Long) As Long
-        Private Declare Function SetForegroundWindow Lib "user32" (ByVal hwnd As Long) As Long
         Private Declare Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As Long, ByVal hmod As Long, ByVal dwThreadId As Long) As Long
+        Private Declare Function ShowWindowAsync Lib "user32" (ByVal hWnd As Long, ByVal nCmdShow As Long) As Long
         Private Declare Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
         Private Declare Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As Long) As Long
         Private Declare Function WindowFromPoint Lib "user32" (ByVal xPoint As Long, ByVal yPoint As Long) As Long
@@ -199,6 +199,9 @@ Private m_passScrollColl As New Collection
 
 'The last control that was hovered (could be the UserForm itself)
 Private m_lastHoveredControl As MouseOverControl
+
+'If VBE took focus then the form needs to retake focus via an async call
+Private m_needsActivation As Boolean
 
 'The last ComboBox that was used
 Private m_lastCombo As MSForms.ComboBox
@@ -386,7 +389,7 @@ Private Sub RemoveForm(ByVal hWndForm As LongPtr)
         m_controls.Remove keyValue
         m_passScrollColl.Remove keyValue
     End If
-    If m_hWndAllForms.count = 0 Then UnHookMouse
+    If m_hWndAllForms.Count = 0 Then UnHookMouse
 End Sub
 
 '*******************************************************************************
@@ -457,6 +460,12 @@ Public Sub SetHoveredControl(ByVal moCtrl As MouseOverControl)
     m_passScrollToParentAtMargins = m_passScrollColl(CStr(moCtrl.FormHandle))
     On Error GoTo 0
     UpdateLastCombo
+    If m_needsActivation Then
+        Const SW_SHOW As Long = 5
+        ShowWindowAsync moCtrl.FormHandle, SW_SHOW
+        m_needsActivation = False
+        HookMouse
+    End If
 End Sub
 
 '*******************************************************************************
@@ -478,7 +487,7 @@ End Sub
 #If Windows Then
 Public Sub ProcessMouseData()
     RemoveDestroyedForms
-    If m_hWndAllForms.count = 0 Then
+    If m_hWndAllForms.Count = 0 Then
         UnHookMouse
         Exit Sub
     End If
@@ -575,13 +584,10 @@ ProcessDisplay:
     Const VBELabel As String = "Microsoft Visual Basic for Applications*"
     Dim foreHWnd As LongPtr: foreHWnd = GetForegroundWindow()
     If foreHWnd <> fHWnd Then
-        If GetWindowCaption(foreHWnd) Like VBELabel Then
-            SetForegroundWindow fHWnd
-        End If
+        m_needsActivation = GetWindowCaption(foreHWnd) Like VBELabel
+        If m_needsActivation Then Exit Sub
     End If
-    If m_hHookMouse = 0 Then
-        m_hHookMouse = SetWindowsHookEx(WH_MOUSE, GetCallbackPtr(), 0, GetCurrentThreadId())
-    End If
+    HookMouse
 End Sub
 #End If
 
@@ -1115,3 +1121,4 @@ Private Function GetWindowUnderCursor() As LongPtr
     #End If
 End Function
 #End If
+
