@@ -1,7 +1,7 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} DemoForm 
    Caption         =   "UserForm1"
-   ClientHeight    =   4590
+   ClientHeight    =   5370
    ClientLeft      =   120
    ClientTop       =   465
    ClientWidth     =   13215
@@ -21,7 +21,15 @@ Private Sub btnClose_Click()
 End Sub
 
 Private Sub CheckBox1_Click()
-    EnableMouseScroll Me, CheckBox1.Value
+    EnableMouseScroll Me, CheckBox1.Value, CheckBox2.Value, CheckBox3.Value
+End Sub
+
+Private Sub CheckBox2_Click()
+    EnableMouseScroll Me, CheckBox1.Value, CheckBox2.Value, CheckBox3.Value
+End Sub
+
+Private Sub CheckBox3_Click()
+    EnableMouseScroll Me, CheckBox1.Value, CheckBox2.Value, CheckBox3.Value
 End Sub
 
 Private Sub CommandButton1_Click()

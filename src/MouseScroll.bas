@@ -194,8 +194,8 @@ Private m_hWndAllForms As New Collection
 'Collection of sub-collections of MouseOverControls (one for each form)
 Private m_controls As New Collection
 
-'Keeps track of the passScrollAtMargins option for each form
-Private m_passScrollColl As New Collection
+'Keeps track of options for each form
+Private m_options As New Collection
 
 'The last control that was hovered (could be the UserForm itself)
 Private m_lastHoveredControl As MouseOverControl
@@ -227,9 +227,15 @@ Private Enum SCROLL_ACTION
     saZoom = 3
 End Enum
 
-'If the current hovered control cannot scroll anymore, then pass (or not) the
-'   scroll to the Parent Control/Form. Variable set in SetHoveredControl()
-Private m_passScrollToParentAtMargins As Boolean
+Private Enum SCROLL_OPTIONS
+    soNone = 0
+    soPassScrollToParentAtMargins = 1 'If the current hovered control cannot
+                                      ' scroll anymore, then pass (or not) the
+                                      ' scroll to the Parent Control/Form
+    soUseShiftForPerpendicularScroll = 2
+    soUseCtrlToZoom = 4
+End Enum
+Private m_lastSO As SCROLL_OPTIONS
 
 'Storage for arguments received in the last mouse hook call
 Private m_ncode As Long
@@ -240,11 +246,15 @@ Private m_lParam As MOUSEHOOKSTRUCTEX
 'Enables mouse wheel scroll for the specified UserForm
 '*******************************************************************************
 Public Function EnableMouseScroll(ByVal uForm As MSForms.UserForm _
-                                , Optional ByVal passScrollToParentAtMargins As Boolean = True) As Boolean
+                                , Optional ByVal passScrollToParentAtMargins As Boolean = True _
+                                , Optional ByVal useShiftForPerpendicularScroll As Boolean = True _
+                                , Optional ByVal useCtrlToZoom As Boolean = True) As Boolean
     If uForm Is Nothing Then Exit Function
     If Not HookMouse Then Exit Function
     '
-    AddForm uForm, passScrollToParentAtMargins
+    AddForm uForm, passScrollToParentAtMargins _
+                 , useShiftForPerpendicularScroll _
+                 , useCtrlToZoom
     ResetLast
     EnableMouseScroll = True
 End Function
@@ -306,7 +316,7 @@ Private Sub UnHookMouse()
         m_hHookMouse = 0
         Set m_hWndAllForms = Nothing
         Set m_controls = Nothing
-        Set m_passScrollColl = Nothing
+        Set m_options = Nothing
         Set m_lastHoveredControl = Nothing
         Set m_lastCombo = Nothing
     End If
@@ -347,20 +357,28 @@ End Function
 'Adds the passScrollAtMargins option to m_passScrollColl collection
 'Adds a sub-collection of MouseMove controls to m_controls collection
 '*******************************************************************************
-Private Sub AddForm(ByVal uForm As MSForms.UserForm, ByVal passScrollAtMargins As Boolean)
+Private Sub AddForm(ByVal uForm As MSForms.UserForm _
+                  , ByVal passScrollAtMargins As Boolean _
+                  , ByVal useShiftForPerpendicularScroll As Boolean _
+                  , ByVal useCtrlToZoom As Boolean)
     Dim hWndForm As LongPtr
     Dim keyValue As String
+    Dim so As SCROLL_OPTIONS
     '
     hWndForm = GetFormHandle(uForm)
     keyValue = CStr(hWndForm)
     '
     If CollectionHasKey(m_hWndAllForms, keyValue) Then
         m_controls.Remove keyValue
-        m_passScrollColl.Remove keyValue
+        m_options.Remove keyValue
     Else
         m_hWndAllForms.Add hWndForm, keyValue
     End If
-    m_passScrollColl.Add passScrollAtMargins, keyValue
+    '
+    If passScrollAtMargins Then so = so Or soPassScrollToParentAtMargins
+    If useShiftForPerpendicularScroll Then so = so Or soUseShiftForPerpendicularScroll
+    If useCtrlToZoom Then so = so Or soUseCtrlToZoom
+    m_options.Add so, keyValue
     '
     Dim subControls As Collection
     Set subControls = New Collection
@@ -387,7 +405,7 @@ Private Sub RemoveForm(ByVal hWndForm As LongPtr)
         Dim keyValue As String: keyValue = CStr(hWndForm)
         m_hWndAllForms.Remove keyValue
         m_controls.Remove keyValue
-        m_passScrollColl.Remove keyValue
+        m_options.Remove keyValue
     End If
     If m_hWndAllForms.Count = 0 Then UnHookMouse
 End Sub
@@ -457,7 +475,7 @@ End Function
 Public Sub SetHoveredControl(ByVal moCtrl As MouseOverControl)
     Set m_lastHoveredControl = moCtrl
     On Error Resume Next
-    m_passScrollToParentAtMargins = m_passScrollColl(CStr(moCtrl.FormHandle))
+    m_lastSO = m_options(CStr(moCtrl.FormHandle))
     On Error GoTo 0
     UpdateLastCombo
     If m_needsActivation Then
@@ -513,7 +531,7 @@ Public Sub ProcessMouseData()
         scrollAction = GetScrollAction(yWheel:=(m_wParam = WM_MOUSEWHEEL))
         '
         If m_isLastComboOn Then
-            m_passScrollToParentAtMargins = False
+            m_lastSO = m_lastSO And Not soPassScrollToParentAtMargins
             Call ScrollY(m_lastCombo, scrollAmount)
         Else
             Select Case scrollAction
@@ -605,17 +623,17 @@ End Function
 '*******************************************************************************
 Private Function GetScrollAction(ByVal yWheel As Boolean) As SCROLL_ACTION
     If yWheel Then
-        If IsShiftKeyDown() Then
+        If IsShiftKeyDown() And CBool(m_lastSO And soUseShiftForPerpendicularScroll) Then
             GetScrollAction = saScrollX
-        ElseIf IsControlKeyDown() Then
+        ElseIf IsControlKeyDown() And CBool(m_lastSO And soUseCtrlToZoom) Then
             GetScrollAction = saZoom
         Else
             GetScrollAction = saScrollY
         End If
     Else
-        If IsShiftKeyDown() Then
+        If IsShiftKeyDown() And CBool(m_lastSO And soUseShiftForPerpendicularScroll) Then
             GetScrollAction = saScrollY
-        ElseIf IsControlKeyDown() Then
+        ElseIf IsControlKeyDown() And CBool(m_lastSO And soUseCtrlToZoom) Then
             GetScrollAction = saZoom
         Else
             GetScrollAction = saScrollX
@@ -713,7 +731,7 @@ Private Sub ScrollY(ByVal ctrl As Object, ByRef scrollAmount As SCROLL_AMOUNT)
                 If ctrlType = ctForm Then ctrl.Repaint
             End If
             '
-            If m_passScrollToParentAtMargins Then
+            If m_lastSO And soPassScrollToParentAtMargins Then
                 'If scroll hasn't changed pass scroll to parent control
                 If ctrl.ScrollTop = lastScrollTop And ctrlType <> ctForm Then
                     If ctrlType = ctPage Then Set ctrl = ctrl.Parent 'Multi
@@ -773,7 +791,7 @@ Private Sub ListScrollY(ByVal ctrl As Object _
     End If
     On Error GoTo 0
     '
-    If m_passScrollToParentAtMargins Then
+    If m_lastSO And soPassScrollToParentAtMargins Then
         If ctrl.TopIndex = lastTopIndex Then
             Call ScrollY(ctrl.Parent, scrollAmount)
         End If
@@ -883,7 +901,7 @@ Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox _
     If Abs(startLine - newline - linesPerPage) < 2 Then GetParent(tbox).Repaint
     tbox.SetFocus
     '
-    If m_passScrollToParentAtMargins Then
+    If m_lastSO And soPassScrollToParentAtMargins Then
         currY = tbox.CurY
         If currY > tbox.LineCount * hmPerLine Then currY = currY - topAdjust
         If Abs(currY - startY) < 2 Then ScrollY tbox.Parent, scrollAmount
@@ -953,7 +971,7 @@ Private Sub ScrollX(ByVal ctrl As Object, ByRef scrollAmount As SCROLL_AMOUNT)
             End If
             '
             'If scroll hasn't changed pass scroll to parent control
-            If m_passScrollToParentAtMargins Then
+            If m_lastSO And soPassScrollToParentAtMargins Then
                 If ctrl.ScrollLeft = lastScrollLeft And ctrlType <> ctForm Then
                     If ctrlType = ctPage Then Set ctrl = ctrl.Parent 'Multi
                     ScrollX ctrl.Parent, scrollAmount
@@ -1032,7 +1050,7 @@ Private Sub Zoom(ByVal ctrl As Object, ByRef scrollAmount As SCROLL_AMOUNT)
             End If
             '
             'If zoom hasn't changed pass zoom to parent control
-            If m_passScrollToParentAtMargins Then
+            If m_lastSO And soPassScrollToParentAtMargins Then
                 If ctrl.Zoom = lastZoom And ctrlType <> ctForm Then
                     If ctrlType = ctPage Then Set ctrl = ctrl.Parent 'Multi
                     Zoom ctrl.Parent, scrollAmount
