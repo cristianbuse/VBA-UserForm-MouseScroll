@@ -294,6 +294,7 @@ Private Function HookMouse() As Boolean
     HookMouse = (m_hHookMouse <> 0)
 End Function
 Private Function GetCallbackPtr() As LongPtr
+    Sin 0 'Dummy call to force correct AddressOf
     Dim ptr As LongPtr: ptr = VBA.Int(AddressOf MouseProc)
     #If Win64 Then 'Fake callback signature to force fix stack parameters
         Dim fakePtr As LongPtr: fakePtr = VBA.Int(AddressOf FakeCallback)
