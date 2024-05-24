@@ -1,4 +1,4 @@
-# VBA UserForm MouseScroll
+# VBA UserForm MouseScroll [![Mentioned in Awesome VBA](https://awesome.re/mentioned-badge.svg)](https://github.com/sancarn/awesome-vba)
 
 MouseScroll is a VBA Project that allows Mouse Wheel Scrolling on MSForms Controls and Userforms.
 
