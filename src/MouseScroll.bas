@@ -202,6 +202,7 @@ Private m_lastHoveredControl As MouseOverControl
 
 'If VBE took focus then the form needs to retake focus via an async call
 Private m_needsActivation As Boolean
+Private m_needsHooking As Boolean
 
 'The last ComboBox that was used
 Private m_lastCombo As MSForms.ComboBox
@@ -478,12 +479,15 @@ Public Sub SetHoveredControl(ByVal moCtrl As MouseOverControl)
     On Error Resume Next
     m_lastSO = m_options(CStr(moCtrl.FormHandle))
     On Error GoTo 0
-    UpdateLastCombo
     If m_needsActivation Then
         Const SW_SHOW As Long = 5
         ShowWindowAsync moCtrl.FormHandle, SW_SHOW
         m_needsActivation = False
+        m_needsHooking = True
+    End If
+    If m_needsHooking Then
         HookMouse
+        m_needsHooking = False
     End If
 End Sub
 
@@ -511,17 +515,18 @@ Public Sub ProcessMouseData()
         Exit Sub
     End If
     '
-    If m_lastHoveredControl Is Nothing Then GoTo ProcessDisplay
+    If m_lastHoveredControl Is Nothing Then GoTo DelayHookAsync
     Dim fHWnd As LongPtr: fHWnd = m_lastHoveredControl.FormHandle
     '
-    If Not CBool(IsWindowEnabled(fHWnd)) Then GoTo ProcessDisplay
+    If Not CBool(IsWindowEnabled(fHWnd)) Then GoTo DelayHookAsync
+    UpdateLastCombo
     If Not m_isLastComboOn Then
         Dim pHWnd As LongPtr: pHWnd = GetWindowUnderCursor()
         Dim className As String: className = Space$(&HFF)
         '
-        If IsChild(fHWnd, pHWnd) = 0 Then GoTo ProcessDisplay
+        If IsChild(fHWnd, pHWnd) = 0 Then GoTo DelayHookAsync
         className = Left$(className, GetClassName(pHWnd, className, Len(className)))
-        If Not (className Like "F3 Server*") Then GoTo ProcessDisplay
+        If Not (className Like "F3 Server*") Then GoTo DelayHookAsync
     End If
     '
     If m_wParam = WM_MOUSEWHEEL Or m_wParam = WM_MOUSEHWHEEL Then
@@ -539,10 +544,10 @@ Public Sub ProcessMouseData()
             Case saScrollY
                 Call ScrollY(m_lastHoveredControl.GetControl, scrollAmount)
             Case saScrollX
-                If m_isLastComboOn Then GoTo ProcessDisplay
+                If m_isLastComboOn Then GoTo DelayHookAsync
                 Call ScrollX(m_lastHoveredControl.GetControl, scrollAmount)
             Case saZoom
-                If m_isLastComboOn Then GoTo ProcessDisplay
+                If m_isLastComboOn Then GoTo DelayHookAsync
                 Call Zoom(m_lastHoveredControl.GetControl, scrollAmount)
             End Select
         End If
@@ -573,7 +578,7 @@ Public Sub ProcessMouseData()
         If GetKeyState(VK_MBUTTON) And &H8000 Then
             If IsShiftKeyDown() Then
                 scrollAmount.lines = sLines * Sgn(lastX - m_lParam.tagMOUSEHOOKSTRUCT.pt.x)
-                If m_isLastComboOn Then GoTo ProcessDisplay
+                If m_isLastComboOn Then GoTo DelayHookAsync
                 Call ScrollX(m_lastHoveredControl.GetControl, scrollAmount)
             Else
                 scrollAmount.lines = sLines * Sgn(lastY - m_lParam.tagMOUSEHOOKSTRUCT.pt.y)
@@ -597,16 +602,17 @@ Public Sub ProcessMouseData()
         End If
     End If
     '
-ProcessDisplay:
     DoEvents
     'Make sure VBE is not activated as this would make the forms lose focus
     Const VBELabel As String = "Microsoft Visual Basic for Applications*"
     Dim foreHWnd As LongPtr: foreHWnd = GetForegroundWindow()
     If foreHWnd <> fHWnd Then
         m_needsActivation = GetWindowCaption(foreHWnd) Like VBELabel
-        If m_needsActivation Then Exit Sub
     End If
-    HookMouse
+    If Not m_needsActivation Then HookMouse
+Exit Sub
+DelayHookAsync:
+    m_needsHooking = True
 End Sub
 #End If
 
