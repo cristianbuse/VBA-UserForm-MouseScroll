@@ -125,15 +125,15 @@ End Type
 #End If
 
 #If Win64 Then
-    Public Const PTR_SIZE As Long = 8
+    Private Const PTR_SIZE As Long = 8
     Private Type LLTemplate
         ll As LongLong
     End Type
-    Public Const vbLongPtr As Long = vbLongLong
+    Private Const vbLongPtr As Long = vbLongLong
 #Else
-    Public Const PTR_SIZE As Long = 4
-    Public Const vbLongLong As Long = 20 'Useful in Select Case logic
-    Public Const vbLongPtr As Long = vbLong
+    Private Const PTR_SIZE As Long = 4
+    Private Const vbLongLong As Long = 20 'Useful in Select Case logic
+    Private Const vbLongPtr As Long = vbLong
 #End If
 
 'Id of the hook procedure to be installed with SetWindowsHookExA for MouseProc
