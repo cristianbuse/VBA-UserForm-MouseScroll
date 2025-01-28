@@ -125,30 +125,18 @@ Public Sub InitFromControl(ByVal formControl As MSForms.Control, ByVal hWndForm 
     Set m_control = formControl
     m_hWndForm = hWndForm
     Select Case TypeName(formControl)
-        Case "CheckBox"
-            Set m_CheckBox = formControl
-        Case "ComboBox"
-            Set m_ComboBox = formControl
-        Case "CommandButton"
-            Set m_CommandButton = formControl
-        Case "Frame"
-            Set m_Frame = formControl
-        Case "Image"
-            Set m_Image = formControl
-        Case "Label"
-            Set m_Label = formControl
-        Case "ListBox"
-            Set m_ListBox = formControl
-        Case "MultiPage"
-            Set m_MultiPage = formControl
-        Case "OptionButton"
-            Set m_OptionButton = formControl
-        Case "TabStrip"
-            Set m_TabStrip = formControl
-        Case "TextBox"
-            Set m_TextBox = formControl
-        Case "ToggleButton"
-            Set m_ToggleButton = formControl
+        Case "CheckBox":      Set m_CheckBox = formControl
+        Case "ComboBox":      Set m_ComboBox = formControl
+        Case "CommandButton": Set m_CommandButton = formControl
+        Case "Frame":         Set m_Frame = formControl
+        Case "Image":         Set m_Image = formControl
+        Case "Label":         Set m_Label = formControl
+        Case "ListBox":       Set m_ListBox = formControl
+        Case "MultiPage":     Set m_MultiPage = formControl
+        Case "OptionButton":  Set m_OptionButton = formControl
+        Case "TabStrip":      Set m_TabStrip = formControl
+        Case "TextBox":       Set m_TextBox = formControl
+        Case "ToggleButton":  Set m_ToggleButton = formControl
     End Select
 End Sub
 
