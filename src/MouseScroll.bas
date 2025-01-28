@@ -872,6 +872,7 @@ Private Sub TBoxScrollY(ByVal tbox As MSForms.TextBox _
             hmPerLine = (minY - .CurY) / (.LineCount - linesPerPage - 1)
             minY = VBA.Int(bottomY - hmPerLine * (.LineCount - 1))
         End If
+        If hmPerLine = 0 Then Exit Sub
         '
         topAdjust = .CurY - minY + (.LineCount - linesPerPage - 1) * hmPerLine
         If Abs(topAdjust) = 1 Then topAdjust = 0 'Rounding error
