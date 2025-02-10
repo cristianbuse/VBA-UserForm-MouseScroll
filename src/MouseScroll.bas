@@ -301,15 +301,11 @@ Private Function HookMouse() As Boolean
 End Function
 Private Function GetCallbackPtr() As LongPtr
     Sin 0 'Dummy call to force correct AddressOf
-    Dim ptr As LongPtr: ptr = VBA.Int(AddressOf MouseProc)
-    #If Win64 Then 'Fake callback signature to force fix stack parameters
-        Dim fakePtr As LongPtr: fakePtr = VBA.Int(AddressOf FakeCallback)
-        Const delegateOffset As Long = 52
-        '
-        CopyMemory ByVal fakePtr + delegateOffset, ByVal ptr + delegateOffset, PTR_SIZE
-        ptr = fakePtr
+    GetCallbackPtr = VBA.Int(AddressOf MouseProc)
+    #If Win64 Then
+        Const asmRetOffset As Long = 89
+        CopyMemory ByVal GetCallbackPtr + asmRetOffset, 0, 1
     #End If
-    GetCallbackPtr = ptr
 End Function
 
 '*******************************************************************************
@@ -326,16 +322,6 @@ Private Sub UnHookMouse()
         Set m_lastCombo = Nothing
     End If
 End Sub
-
-'*******************************************************************************
-'Method used only for fixing the stack frame parameters for the actual callback
-'Not called directly
-'*******************************************************************************
-#If Win64 Then
-Private Function FakeCallback() As LongPtr
-    UnHookMouse
-End Function
-#End If
 
 '*******************************************************************************
 'Callback function - asynchronously defers mouse messages to 'ProcessMouseData'
@@ -1144,4 +1130,3 @@ Private Function GetWindowUnderCursor() As LongPtr
 End Function
 
 #End If 'End of #If Mac
-
