@@ -61,6 +61,7 @@ Attribute VB_Name = "MouseScroll"
 ''==============================================================================
 
 Option Explicit
+Option Private Module
 
 #If Mac Then 'Placeholders
     Public Function EnableMouseScroll(ByVal uForm As MSForms.UserForm _
@@ -608,7 +609,7 @@ End Sub
 '*******************************************************************************
 Private Function GetWindowCaption(ByVal hwnd As LongPtr) As String
     Dim bufferLength As Long: bufferLength = GetWindowTextLength(hwnd)
-    GetWindowCaption = VBA.Space$(bufferLength)
+    GetWindowCaption = Space$(bufferLength)
     GetWindowText hwnd, GetWindowCaption, bufferLength + 1
 End Function
 
