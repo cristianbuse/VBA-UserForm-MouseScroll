@@ -192,10 +192,6 @@ Private Type SCROLL_AMOUNT
     pages As Single
 End Type
 
-'Hook handle obtained from a previous call to SetWindowsHookEx
-'Used when calling UnhookWindowsHookEx in order to remove the hook
-Private m_hHookMouse As LongPtr
-
 'Window handles for all forms with scrolling enabled. Always instantiated
 Private m_hWndAllForms As New Collection
 
@@ -277,6 +273,22 @@ Public Sub DisableMouseScroll(ByVal uForm As MSForms.UserForm)
     ResetLast
 End Sub
 
+'Hook handle obtained from a previous call to SetWindowsHookEx
+'Used when calling UnhookWindowsHookEx in order to remove the hook
+Private Property Get HookMouseHandle() As LongPtr
+    Dim s As String: s = GetSetting("MouseScroll" _
+                                  , "HookHandle", CStr(ObjPtr(ThisWorkbook)))
+    If LenB(s) > 0 Then HookMouseHandle = s
+End Property
+Private Property Let HookMouseHandle(ByVal newValue As LongPtr)
+    If newValue = 0 Then
+        DeleteSetting "MouseScroll", "HookHandle", CStr(ObjPtr(ThisWorkbook))
+    Else
+        SaveSetting "MouseScroll", "HookHandle", CStr(ObjPtr(ThisWorkbook)) _
+                                               , CStr(newValue)
+    End If
+End Property
+
 '*******************************************************************************
 'Resets cached controls
 '*******************************************************************************
@@ -291,14 +303,10 @@ End Sub
 '   ScrollY and ScrollX
 '*******************************************************************************
 Private Function HookMouse() As Boolean
-    If m_hHookMouse <> 0 Then
-        HookMouse = True
-        Exit Function
+    If HookMouseHandle = 0 Then
+        HookMouseHandle = SetWindowsHookEx(WH_MOUSE, GetCallbackPtr(), 0, GetCurrentThreadId())
     End If
-    '
-    m_hHookMouse = SetWindowsHookEx(WH_MOUSE, GetCallbackPtr(), 0, GetCurrentThreadId())
-    '
-    HookMouse = (m_hHookMouse <> 0)
+    HookMouse = (HookMouseHandle <> 0)
 End Function
 Private Function GetCallbackPtr() As LongPtr
     Sin 0 'Dummy call to force correct AddressOf
@@ -313,15 +321,16 @@ End Function
 'UnHooks Mouse
 '*******************************************************************************
 Private Sub UnHookMouse()
-    If m_hHookMouse <> 0 Then
-        UnhookWindowsHookEx m_hHookMouse
-        m_hHookMouse = 0
-        Set m_hWndAllForms = Nothing
-        Set m_controls = Nothing
-        Set m_options = Nothing
-        Set m_lastHoveredControl = Nothing
-        Set m_lastCombo = Nothing
-    End If
+    Dim h As LongPtr: h = HookMouseHandle
+    If h = 0 Then Exit Sub
+    '
+    UnhookWindowsHookEx h
+    HookMouseHandle = 0
+    Set m_hWndAllForms = Nothing
+    Set m_controls = Nothing
+    Set m_options = Nothing
+    Set m_lastHoveredControl = Nothing
+    Set m_lastCombo = Nothing
 End Sub
 
 '*******************************************************************************
@@ -339,8 +348,8 @@ Private Function MouseProc(ByVal ncode As Long _
     m_ncode = ncode
     m_wParam = wParam
     m_lParam = lParam
-    UnhookWindowsHookEx m_hHookMouse
-    m_hHookMouse = 0
+    UnhookWindowsHookEx HookMouseHandle
+    HookMouseHandle = 0
     MouseProc = CallNextHookEx(0, ncode, wParam, ByVal lParam)
 End Function
 
