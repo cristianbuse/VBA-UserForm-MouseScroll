@@ -56,6 +56,24 @@ Attribute VB_Exposed = False
 
 Option Explicit
 
+#If Mac = 0 Then
+    #If VBA7 Then
+        Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
+    #Else
+        Private Declare Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As Long)
+    #End If
+#End If
+#If VBA7 = 0 Then
+    Private Enum LongPtr
+        [_]
+    End Enum
+#End If
+#If Win64 Then
+    Private Const PTR_SIZE As Long = 8
+#Else
+    Private Const PTR_SIZE As Long = 4
+#End If
+
 'Control types (MSForms.Control or MSForms.UserForm)
 Private WithEvents m_CheckBox As MSForms.CheckBox
 Attribute m_CheckBox.VB_VarHelpID = -1
@@ -84,15 +102,13 @@ Attribute m_ToggleButton.VB_VarHelpID = -1
 Private WithEvents m_UserForm As MSForms.UserForm
 Attribute m_UserForm.VB_VarHelpID = -1
 
-'Late-binded control/form
-Private m_control As Object
+Implements DataObject
+Implements IFontEventsDisp
 
-#If VBA7 Then
-    Private m_hWndForm As LongPtr
-#Else
-    Private m_hWndForm As Long
-#End If
-
+Private m_data As MSForms.DataObject
+Private m_callbackPtr As LongPtr
+Private m_control As Object 'Late-binded control/form
+Private m_hWndForm As LongPtr
 Private m_isCallback As Boolean
 
 #If VBA7 Then
@@ -151,48 +167,20 @@ Public Sub InitFromForm(ByVal uForm As MSForms.UserForm, ByVal hWndForm As Long)
 End Sub
 
 'MouseMove Events
-Private Sub m_CheckBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_ComboBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_CommandButton_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_Frame_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_Image_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_Label_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_ListBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_ListView_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As stdole.OLE_XPOS_PIXELS, ByVal y As stdole.OLE_YPOS_PIXELS)
-    SetHoveredControl Me
-End Sub
-Private Sub m_MultiPage_MouseMove(ByVal Index As Long, ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_OptionButton_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub M_TabStrip_MouseMove(ByVal Index As Long, ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_TextBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_ToggleButton_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
-Private Sub m_UserForm_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single)
-    SetHoveredControl Me
-End Sub
+Private Sub m_CheckBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):                                 SetHoveredControl Me: End Sub
+Private Sub m_ComboBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):                                 SetHoveredControl Me: End Sub
+Private Sub m_CommandButton_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):                            SetHoveredControl Me: End Sub
+Private Sub m_Frame_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):                                    SetHoveredControl Me: End Sub
+Private Sub m_Image_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):                                    SetHoveredControl Me: End Sub
+Private Sub m_Label_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):                                    SetHoveredControl Me: End Sub
+Private Sub m_ListBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):                                  SetHoveredControl Me: End Sub
+Private Sub m_ListView_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As stdole.OLE_XPOS_PIXELS, ByVal y As stdole.OLE_YPOS_PIXELS): SetHoveredControl Me: End Sub
+Private Sub m_MultiPage_MouseMove(ByVal Index As Long, ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):           SetHoveredControl Me: End Sub
+Private Sub m_OptionButton_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):                             SetHoveredControl Me: End Sub
+Private Sub M_TabStrip_MouseMove(ByVal Index As Long, ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):            SetHoveredControl Me: End Sub
+Private Sub m_TextBox_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):                                  SetHoveredControl Me: End Sub
+Private Sub m_ToggleButton_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):                             SetHoveredControl Me: End Sub
+Private Sub m_UserForm_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal x As Single, ByVal y As Single):                                 SetHoveredControl Me: End Sub
 
 'Scroll Event for Containers. This cancels out any scroll that is triggered by a
 '   control getting the focus - especially TextBoxes on .SetFocus
@@ -228,3 +216,55 @@ End Property
 Private Sub Class_Terminate()
     If m_isCallback Then ProcessMouseData
 End Sub
+
+Private Property Get MemLongPtr(ByVal memAddress As LongPtr) As LongPtr
+    CopyMemory MemLongPtr, ByVal memAddress, PTR_SIZE
+End Property
+Private Property Let MemLongPtr(ByVal memAddress As LongPtr, ByVal newValue As LongPtr)
+    CopyMemory ByVal memAddress, newValue, PTR_SIZE
+End Property
+
+'https://github.com/cristianbuse/VBA-StateLossCallback
+#If VBA7 Then
+Public Sub InitStateLossCallback(ByVal memAddress As LongPtr)
+#Else
+Public Sub InitStateLossCallback(ByVal memAddress As Long)
+#End If
+    m_callbackPtr = memAddress
+    Dim dataInterfacePtr As LongPtr: dataInterfacePtr = VarPtr(DataObject) + PTR_SIZE
+    Dim dataVirtTablePtr As LongPtr: dataVirtTablePtr = MemLongPtr(dataInterfacePtr)
+    Dim dataAddRefAddr As LongPtr:   dataAddRefAddr = dataVirtTablePtr + PTR_SIZE * 1
+    Dim dataReleaseAddr As LongPtr:  dataReleaseAddr = dataVirtTablePtr + PTR_SIZE * 2
+    Dim dataClearAddr As LongPtr:    dataClearAddr = dataVirtTablePtr + PTR_SIZE * 7
+    Dim dataGetClipAddr As LongPtr:  dataGetClipAddr = dataVirtTablePtr + PTR_SIZE * 12
+    '
+    MemLongPtr(VarPtr(m_data)) = dataInterfacePtr            'Unmanaged reference
+    MemLongPtr(dataReleaseAddr) = MemLongPtr(dataClearAddr)  'Main reroute
+    MemLongPtr(dataAddRefAddr) = MemLongPtr(dataGetClipAddr) 'See GetFromClipboard
+End Sub
+
+
+'*******************************************************************************
+'Called when the m_data instance is being cleared by VB
+'*******************************************************************************
+Private Sub DataObject_Clear()
+    If Not m_data Is Nothing Then Exit Sub
+    '
+    Dim eFont As stdole.IFontEventsDisp: Set eFont = Me
+    MemLongPtr(MemLongPtr(ObjPtr(eFont)) + PTR_SIZE * 7) = m_callbackPtr
+    eFont.FontChanged vbNullString
+End Sub
+
+'*******************************************************************************
+'Called instead of AddRef when an external cast to DataObject is executed
+'Avoids incrementing the reference count thus making sure there are no leaks
+'*******************************************************************************
+Private Sub DataObject_GetFromClipboard(): End Sub
+
+'The following methods are required by the 2 implemented interfaces but are not used
+Private Function DataObject_GetFormat(ByVal Format As Variant) As Boolean: End Function
+Private Function DataObject_GetText(Optional ByVal Format As Variant) As String: End Function
+Private Sub DataObject_PutInClipboard(): End Sub
+Private Sub DataObject_SetText(ByVal Text As String, Optional ByVal Format As Variant): End Sub
+Private Function DataObject_StartDrag(Optional ByVal OKEffect As Variant) As MSForms.fmDropEffect: End Function
+Private Sub IFontEventsDisp_FontChanged(ByVal PropertyName As String): End Sub

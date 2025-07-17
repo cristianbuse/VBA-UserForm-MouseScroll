@@ -305,6 +305,7 @@ End Sub
 Private Function HookMouse() As Boolean
     If HookMouseHandle = 0 Then
         HookMouseHandle = SetWindowsHookEx(WH_MOUSE, GetCallbackPtr(), 0, GetCurrentThreadId())
+        ActivateFailSafe
     End If
     HookMouse = (HookMouseHandle <> 0)
 End Function
@@ -316,6 +317,17 @@ Private Function GetCallbackPtr() As LongPtr
         CopyMemory ByVal GetCallbackPtr + asmRetOffset, 0, 1
     #End If
 End Function
+
+'*******************************************************************************
+'Makes sure UnHookMouse is also called on state loss
+'*******************************************************************************
+Private Sub ActivateFailSafe()
+    Static slc As MouseOverControl
+    If slc Is Nothing Then
+        Set slc = New MouseOverControl
+        slc.InitStateLossCallback AddressOf UnHookMouse
+    End If
+End Sub
 
 '*******************************************************************************
 'UnHooks Mouse
