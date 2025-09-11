@@ -56,6 +56,8 @@ Attribute VB_Exposed = False
 
 Option Explicit
 
+#Const x64 = Win64
+
 #If VBA7 = 0 Then
     Private Enum LongPtr: [_]: End Enum
 #End If
@@ -90,7 +92,17 @@ Attribute m_UserForm.VB_VarHelpID = -1
 
 Private m_control As Object 'Late-binded control/form
 Private m_hWndForm As LongPtr
-Private m_isCallback As Boolean
+
+'No need to call CallNextHookEx because the hook is already unninstalled by the
+'   time this method is called
+Friend Sub MouseProc(ByVal ncode As Long _
+                   , ByVal wParam As Long _
+                   , ByRef lParam As MOUSEHOOKSTRUCTEX)
+    ProcessMouseData ncode, wParam, lParam
+End Sub
+#If x64 Then
+Private Function MouseProcASM(v1, v2, v3, v4): End Function 'v1-v4 needed for additonal asm bytes
+#End If
 
 #If VBA7 Then
 Public Function CreateFromControl(ByVal formControl As MSForms.Control, ByVal hWndForm As LongPtr) As MouseOverControl
@@ -189,11 +201,3 @@ Public Property Get FormHandle() As Long
 #End If
     FormHandle = m_hWndForm
 End Property
-
-Public Property Let IsAsyncCallback(ByVal newValue As Boolean)
-    m_isCallback = newValue
-End Property
-
-Private Sub Class_Terminate()
-    If m_isCallback Then ProcessMouseData
-End Sub

@@ -63,6 +63,9 @@ Attribute VB_Name = "MouseScroll"
 Option Explicit
 Option Private Module
 
+#Const x64 = Win64
+#Const x32 = (x64 = 0)
+
 #If Mac Then 'Placeholders
     Public Function EnableMouseScroll(ByVal uForm As MSForms.UserForm _
                                     , Optional ByVal passScrollToParentAtMargins As Boolean = True _
@@ -81,12 +84,12 @@ End Type
 
 'API declarations
 #If VBA7 Then
-    Private Declare PtrSafe Function CallNextHookEx Lib "user32" (ByVal hHook As LongPtr, ByVal ncode As Long, ByVal wParam As LongPtr, lParam As Any) As LongPtr
-    Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
     Private Declare PtrSafe Function GetClassName Lib "user32" Alias "GetClassNameA" (ByVal hwnd As LongPtr, ByVal lpClassName As String, ByVal nMaxCount As Long) As Long
-    Private Declare PtrSafe Function GetCursorPos Lib "user32" (lpPoint As POINTAPI) As Long
     Private Declare PtrSafe Function GetCurrentThreadId Lib "kernel32" () As Long
+    Private Declare PtrSafe Function GetCursorPos Lib "user32" (lpPoint As POINTAPI) As Long
     Private Declare PtrSafe Function GetForegroundWindow Lib "user32" () As LongPtr
+    Private Declare PtrSafe Function GetModuleHandle Lib "kernel32" Alias "GetModuleHandleA" (ByVal lpModuleName As String) As LongPtr
+    Private Declare PtrSafe Function GetProcAddress Lib "kernel32" (ByVal hModule As LongPtr, ByVal lpProcName As String) As LongPtr
     Private Declare PtrSafe Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
     Private Declare PtrSafe Function GetWindowText Lib "user32" Alias "GetWindowTextA" (ByVal hwnd As LongPtr, ByVal lpString As String, ByVal cch As Long) As Long
     Private Declare PtrSafe Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" (ByVal hwnd As LongPtr) As Long
@@ -98,19 +101,18 @@ End Type
     Private Declare PtrSafe Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As LongPtr, ByVal hmod As LongPtr, ByVal dwThreadId As Long) As LongPtr
     Private Declare PtrSafe Function ShowWindowAsync Lib "user32" (ByVal hwnd As LongPtr, ByVal nCmdShow As Long) As Long
     Private Declare PtrSafe Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
-    Private Declare PtrSafe Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As LongPtr) As Long
     #If Win64 Then
         Private Declare PtrSafe Function WindowFromPoint Lib "user32" (ByVal Point As LongLong) As LongPtr
     #Else
         Private Declare PtrSafe Function WindowFromPoint Lib "user32" (ByVal xPoint As Long, ByVal yPoint As Long) As LongPtr
     #End If
 #Else
-    Private Declare Function CallNextHookEx Lib "user32" (ByVal hHook As Long, ByVal ncode As Long, ByVal wParam As Long, lParam As Any) As Long
-    Private Declare Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As Long)
     Private Declare Function GetClassName Lib "user32" Alias "GetClassNameA" (ByVal hwnd As Long, ByVal lpClassName As String, ByVal nMaxCount As Long) As Long
-    Private Declare Function GetCursorPos Lib "user32" (lpPoint As POINTAPI) As Long
     Private Declare Function GetCurrentThreadId Lib "kernel32" () As Long
+    Private Declare Function GetCursorPos Lib "user32" (lpPoint As POINTAPI) As Long
     Private Declare Function GetForegroundWindow Lib "user32" () As Long
+    Private Declare Function GetModuleHandle Lib "kernel32" Alias "GetModuleHandleA" (ByVal lpModuleName As String) As Long
+    Private Declare Function GetProcAddress Lib "kernel32" (ByVal hModule As Long, ByVal lpProcName As String) As Long
     Private Declare Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
     Private Declare Function GetWindowText Lib "user32" Alias "GetWindowTextA" (ByVal hwnd As Long, ByVal lpString As String, ByVal cch As Long) As Long
     Private Declare Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" (ByVal hwnd As Long) As Long
@@ -120,29 +122,41 @@ End Type
     Private Declare Function IUnknown_GetWindow Lib "shlwapi" Alias "#172" (ByVal pIUnk As IUnknown, ByVal hwnd As Long) As Long
     Private Declare Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As Long, ByVal wMsg As Long, ByVal wParam As Long, ByVal lParam As Long) As Long
     Private Declare Function SetWindowsHookEx Lib "user32" Alias "SetWindowsHookExA" (ByVal idHook As Long, ByVal lpfn As Long, ByVal hmod As Long, ByVal dwThreadId As Long) As Long
-    Private Declare Function ShowWindowAsync Lib "user32" (ByVal hWnd As Long, ByVal nCmdShow As Long) As Long
+    Private Declare Function ShowWindowAsync Lib "user32" (ByVal hwnd As Long, ByVal nCmdShow As Long) As Long
     Private Declare Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
-    Private Declare Function UnhookWindowsHookEx Lib "user32" (ByVal hHook As Long) As Long
     Private Declare Function WindowFromPoint Lib "user32" (ByVal xPoint As Long, ByVal yPoint As Long) As Long
 #End If
 
 #If VBA7 = 0 Then
-    Private Enum LongPtr
-        [_]
-    End Enum
+    Private Enum LongPtr: [_]: End Enum
+    Private Enum LONG_PTR: [_]: End Enum
 #End If
 
-#If Win64 Then
-    Private Const PTR_SIZE As Long = 8
-    Private Type LLTemplate
-        ll As LongLong
-    End Type
-    Private Const vbLongPtr As Long = vbLongLong
+#If x64 Then
+    Private Const NullPtr As LongLong = 0^
+    Private Const PtrSize As Long = 8
 #Else
-    Private Const PTR_SIZE As Long = 4
-    Private Const vbLongLong As Long = 20 'Useful in Select Case logic
-    Private Const vbLongPtr As Long = vbLong
+    Private Const NullPtr As Long = 0&
+    Private Const PtrSize As Long = 4
 #End If
+
+Private Type SAFEARRAYBOUND
+    cElements As Long
+    lLbound As Long
+End Type
+Private Type SAFEARRAY_1D
+    cDims As Integer
+    fFeatures As Integer
+    cbElements As Long
+    cLocks As Long
+    pvData As LongPtr
+    rgsabound0 As SAFEARRAYBOUND
+End Type
+
+Private Type PointerAccessor
+    arr() As LongPtr
+    sa As SAFEARRAY_1D
+End Type
 
 'Id of the hook procedure to be installed with SetWindowsHookExA for MouseProc
 Private Const WH_MOUSE As Long = 7
@@ -177,7 +191,7 @@ Private Const WM_XBUTTONDBLCLK As Long = &H20D
 Private Const WM_MOUSEHWHEEL As Long = &H20E
 
 'lParam
-Private Type MOUSEHOOKSTRUCTEX
+Public Type MOUSEHOOKSTRUCTEX
     tagMOUSEHOOKSTRUCT As MOUSEHOOKSTRUCT
     mouseData As Long 'DWORD
 End Type
@@ -242,10 +256,7 @@ Private Enum SCROLL_OPTIONS
 End Enum
 Private m_lastSO As SCROLL_OPTIONS
 
-'Storage for arguments received in the last mouse hook call
-Private m_ncode As Long
-Private m_wParam As Long
-Private m_lParam As MOUSEHOOKSTRUCTEX
+Private m_hookOnFlag As Byte 'See HookMouseIfNeeded
 
 '*******************************************************************************
 'Enables mouse wheel scroll for the specified UserForm
@@ -255,7 +266,7 @@ Public Function EnableMouseScroll(ByVal uForm As MSForms.UserForm _
                                 , Optional ByVal useShiftForPerpendicularScroll As Boolean = True _
                                 , Optional ByVal useCtrlToZoom As Boolean = True) As Boolean
     If uForm Is Nothing Then Exit Function
-    If Not HookMouse Then Exit Function
+    HookMouseIfNeeded
     '
     AddForm uForm, passScrollToParentAtMargins _
                  , useShiftForPerpendicularScroll _
@@ -273,22 +284,6 @@ Public Sub DisableMouseScroll(ByVal uForm As MSForms.UserForm)
     ResetLast
 End Sub
 
-'Hook handle obtained from a previous call to SetWindowsHookEx
-'Used when calling UnhookWindowsHookEx in order to remove the hook
-Private Property Get HookMouseHandle() As LongPtr
-    Dim s As String: s = GetSetting("MouseScroll" _
-                                  , "HookHandle", CStr(ObjPtr(ThisWorkbook)))
-    If LenB(s) > 0 Then HookMouseHandle = s
-End Property
-Private Property Let HookMouseHandle(ByVal newValue As LongPtr)
-    If newValue = 0 Then
-        DeleteSetting "MouseScroll", "HookHandle", CStr(ObjPtr(ThisWorkbook))
-    Else
-        SaveSetting "MouseScroll", "HookHandle", CStr(ObjPtr(ThisWorkbook)) _
-                                               , CStr(newValue)
-    End If
-End Property
-
 '*******************************************************************************
 'Resets cached controls
 '*******************************************************************************
@@ -302,68 +297,118 @@ End Sub
 'The MouseProc callback will manipulate controls/forms by calling methods like
 '   ScrollY and ScrollX
 '*******************************************************************************
-Private Function HookMouse() As Boolean
-    If HookMouseHandle = 0 Then
-        HookMouseHandle = SetWindowsHookEx(WH_MOUSE, GetCallbackPtr(), 0, GetCurrentThreadId())
-        ActivateFailSafe
+Private Sub HookMouseIfNeeded()
+    Static hHookAddr As LongPtr
+    Static aPtr As LongPtr
+    Static mProcObj As New MouseOverControl
+    Static tID As Long
+    Dim needsASM As Boolean
+    Dim mPtr As LongPtr
+    Dim uHookAddr As LongPtr
+    Dim flagAddr As LongPtr
+    Dim oPtrAddr As LongPtr
+#If x64 Then
+    Const ctrlASM As Long = &H894C
+#Else
+    Const ctrlASM As Long = &HD0FF
+#End If
+    '
+    If m_hookOnFlag = 1 Then Exit Sub
+    needsASM = (aPtr = NullPtr)
+    If Not needsASM Then needsASM = (MemLongPtr(aPtr + 10) And &HFFFF) <> ctrlASM
+    '
+    If needsASM Then
+        mPtr = VBA.Int(AddressOf MouseProcEntryASM)
+#If x64 Then
+        aPtr = MemLongPtr(MemLongPtr(ObjPtr(mProcObj)) + PtrSize * 14) 'mProcObj.MouseProcASM
+        MemLongPtr(aPtr) = &H8244C8948^       '48 89 4C 24 08       ;MOV QWORD PTR [RSP+08],RCX
+        MemLongPtr(aPtr + 5) = &H1024548948^  '48 89 54 24 10       ;MOV QWORD PTR [RSP+10],RDX
+        MemLongPtr(aPtr + 10) = &H182444894C^ '4C 89 44 24 18       ;MOV QWORD PTR [RSP+18],R8
+        MemLongPtr(aPtr + 15) = &HB948        '48 B9                ;MOV RCX,0...
+        hHookAddr = aPtr + 17
+        MemLongPtr(aPtr + 25) = &HB848        '48 B8                ;MOV RAX,0...
+        uHookAddr = aPtr + 27
+        MemLongPtr(aPtr + 35) = &H55          '55                   ;PUSH RBP
+        MemLongPtr(aPtr + 36) = &HEC8B48      '48 8B EC             ;MOV RBP,RSP
+        MemLongPtr(aPtr + 39) = &H20EC8348    '48 83 EC 20          ;SUB RSP,0x20
+        MemLongPtr(aPtr + 43) = &HD0FF        'FF D0                ;CALL RAX ;UnHookMouse
+        MemLongPtr(aPtr + 45) = &H20C48348    '48 83 C4 20          ;ADD RSP,0x20
+        MemLongPtr(aPtr + 49) = &H5D          '5D                   ;POP RBP
+        MemLongPtr(aPtr + 50) = &HB848        '48 B8                ;MOV RAX,0...
+        flagAddr = aPtr + 52
+        MemLongPtr(aPtr + 60) = &H3880        '80 38 00             ;CMP BYTE PTR [RAX],0x0
+        MemLongPtr(aPtr + 63) = &H2F74        '74 2F                ;JE ... ;RET
+        MemLongPtr(aPtr + 65) = &HC6          'C6 00 00             ;MOV BYTE PTR [RAX],00
+        MemLongPtr(aPtr + 68) = &HB948        '48 B9                ;MOV RCX,0...
+        oPtrAddr = aPtr + 70
+        MemLongPtr(aPtr + 78) = &H824548B48^  '48 8B 54 24 08       ;MOV RDX,QWORD PTR [RSP+08]
+        MemLongPtr(aPtr + 83) = &H1024448B4C^ '4C 8B 44 24 10       ;MOV R8,QWORD PTR [RSP+10]
+        MemLongPtr(aPtr + 88) = &H18244C8B4C^ '4C 8B 4C 24 18       ;MOV R9,QWORD PTR [RSP+18
+        MemLongPtr(aPtr + 93) = &H18B48       '48 8B 01             ;MOV RAX,QWORD PTR [RCX] ;vtbl
+        MemLongPtr(aPtr + 96) = &H55          '55                   ;PUSH RBP
+        MemLongPtr(aPtr + 97) = &HEC8B48      '48 8B EC             ;MOV RBP,RSP
+        MemLongPtr(aPtr + 100) = &H20EC8348   '48 83 EC 20          ;SUB RSP,0x20
+        MemLongPtr(aPtr + 104) = &H6850FF     'FF 50 68             ;CALL QWORD PTR [RAX+68] ;MouseProc
+        MemLongPtr(aPtr + 107) = &H20C48348   '48 83 C4 20          ;ADD RSP,0x20
+        MemLongPtr(aPtr + 111) = &H5D         '5D                   ;POP RBP
+        MemLongPtr(aPtr + 112) = &HC3         'C3                   ;RET
+        MemLongPtr(mPtr + 55) = aPtr
+#Else
+        aPtr = VBA.Int(AddressOf MouseProcASM1) 'Only enough for 33 bytes
+        Dim aPtr2 As Long: aPtr2 = VBA.Int(AddressOf MouseProcASM2)
+        MemLongPtr(mPtr + 22) = aPtr
+        '
+        MemLongPtr(aPtr) = &H68               '68                   ;PUSH 0...
+        hHookAddr = aPtr + 1
+        MemLongPtr(aPtr + 5) = &HB8           'B8                   ;MOV EAX,0...
+        uHookAddr = aPtr + 6
+        MemLongPtr(aPtr + 10) = &HD0FF        'FF D0                ;CALL EAX ;UnHookMouse
+        MemLongPtr(aPtr + 12) = &HB9          'B9                   ;MOV ECX,0...
+        flagAddr = aPtr + 13
+        MemLongPtr(aPtr + 17) = &H13980       '80 39 01             ;CMP BYTE PTR [ECX],01
+        MemLongPtr(aPtr + 20) = &H374         '74 03                ;JE ... ;Skip RET
+        MemLongPtr(aPtr + 22) = &HCC2         'C2 0C 00             ;RET 000C
+        MemLongPtr(aPtr + 25) = &HB8          'B8                   ;MOV EAX,0...
+        MemLongPtr(aPtr + 26) = aPtr2
+        MemLongPtr(aPtr + 30) = &HE0FF        'FF E0                ;JMP EAX
+        '
+        MemLongPtr(aPtr2) = &H1C6             'C6 01 00             ;MOV BYTE PTR [ECX],00
+        MemLongPtr(aPtr2 + 3) = &H2434FF      'FF 34 24             ;PUSH DWORD PTR [ESP] ;push return address
+        MemLongPtr(aPtr2 + 6) = &HB9          'B9                   ;MOV ECX,0...
+        oPtrAddr = aPtr2 + 7
+        MemLongPtr(aPtr2 + 11) = &H4244C89    '89 4C 24 04          ;MOV DWORD PTR [ESP+04],ECX ;mProcObj
+        MemLongPtr(aPtr2 + 15) = &H18B        '8B 01                ;MOV EAX,DWORD PTR [ECX]
+        MemLongPtr(aPtr2 + 17) = &H34408B     '8B 40 34             ;MOV EAX,DWORD PTR [EAX+34]
+        MemLongPtr(aPtr2 + 20) = &HE0FF       'FF E0                ;JMP EAX
+#End If
+        MemLongPtr(flagAddr) = VarPtr(m_hookOnFlag)
+        MemLongPtr(oPtrAddr) = ObjPtr(mProcObj)
+        MemLongPtr(uHookAddr) = GetProcAddress(GetModuleHandle("user32"), "UnhookWindowsHookEx")
+        tID = GetCurrentThreadId()
     End If
-    HookMouse = (HookMouseHandle <> 0)
-End Function
-Private Function GetCallbackPtr() As LongPtr
-    Sin 0 'Dummy call to force correct AddressOf
-    GetCallbackPtr = VBA.Int(AddressOf MouseProc)
-    #If Win64 Then
-        Const asmRetOffset As Long = 89
-        CopyMemory ByVal GetCallbackPtr + asmRetOffset, 0, 1
-    #End If
-End Function
-
-'*******************************************************************************
-'Makes sure UnHookMouse is also called on state loss
-'*******************************************************************************
-Private Sub ActivateFailSafe()
-    Static slc As MouseOverControl
-    If slc Is Nothing Then
-        Set slc = New MouseOverControl
-        slc.InitStateLossCallback AddressOf UnHookMouse
-    End If
+    m_hookOnFlag = 1
+    MemLongPtr(hHookAddr) = SetWindowsHookEx(WH_MOUSE, mPtr, 0, tID)
 End Sub
+#If x64 Then
+Private Sub MouseProcEntryASM(): End Sub 'Takes care of Break Mode by default
+#Else
+Private Sub MouseProcEntryASM(a1, a2, a3): End Sub 'Args for correct RET 0x0C
+Private Sub MouseProcASM1(): End Sub
+Private Sub MouseProcASM2(): End Sub
+#End If
 
 '*******************************************************************************
 'UnHooks Mouse
 '*******************************************************************************
 Private Sub UnHookMouse()
-    Dim h As LongPtr: h = HookMouseHandle
-    If h = 0 Then Exit Sub
-    '
-    UnhookWindowsHookEx h
-    HookMouseHandle = 0
+    m_hookOnFlag = 0
     Set m_hWndAllForms = Nothing
     Set m_controls = Nothing
     Set m_options = Nothing
     Set m_lastHoveredControl = Nothing
     Set m_lastCombo = Nothing
+    Debug.Print "Unhooked " & Now()
 End Sub
-
-'*******************************************************************************
-'Callback function - asynchronously defers mouse messages to 'ProcessMouseData'
-'
-'WARNING! You can add breakpoints and step through code while debugging but do
-'   NOT press the IDE 'Reset' button while within the scope of this method
-'*******************************************************************************
-Private Function MouseProc(ByVal ncode As Long _
-                         , ByVal wParam As Long _
-                         , ByRef lParam As MOUSEHOOKSTRUCTEX) As LongPtr
-    Dim asyncClass As MouseOverControl: Set asyncClass = New MouseOverControl
-    '
-    asyncClass.IsAsyncCallback = True 'Calls ProcessMouseData on Terminate
-    m_ncode = ncode
-    m_wParam = wParam
-    m_lParam = lParam
-    UnhookWindowsHookEx HookMouseHandle
-    HookMouseHandle = 0
-    MouseProc = CallNextHookEx(0, ncode, wParam, ByVal lParam)
-End Function
 
 '*******************************************************************************
 'Adds the form handle to m_hWndAllForms collection
@@ -435,36 +480,15 @@ Private Sub RemoveDestroyedForms()
             Dim iUnk As IUnknown: Set iUnk = m_controls(s)(s).GetControl
             Dim ptr As LongPtr:   ptr = ObjPtr(iUnk)
             Dim refCount As Long
-            Static memValue As Variant
-            Static remoteVT As Variant
-            Const VT_BYREF As Long = &H4000
             '
             Set iUnk = Nothing
-            If IsEmpty(memValue) Then
-                remoteVT = VarPtr(memValue)
-                CopyMemory remoteVT, vbInteger + VT_BYREF, 2
-            End If
             '
-            'Faster (VBA7) than: CopyMemory refCount, ByVal ptr + PTR_SIZE, 4
-            memValue = ptr + PTR_SIZE
-            RemoteAssign remoteVT, vbLong + VT_BYREF, refCount, memValue
+            refCount = CLng(MemLongPtr(ptr + PtrSize) And &H7FFFFFFF)
             If refCount = 2 Then RemoveForm v
         Else
             RemoveForm v
         End If
     Next v
-End Sub
-'This method assures the required redirection for both the remote varType and
-'   the remote value at the same time thus removing any additional stack frames
-'It can be used to both read from and write to memory by swapping the order of
-'   the last 2 parameters
-Private Sub RemoteAssign(ByRef remoteVT As Variant, _
-                         ByVal newVT As VbVarType, _
-                         ByRef targetVariable As Variant, _
-                         ByRef newValue As Variant)
-    remoteVT = newVT
-    targetVariable = newValue
-    remoteVT = vbLongPtr 'Stop linking to remote address, for safety
 End Sub
 
 '*******************************************************************************
@@ -497,7 +521,7 @@ Public Sub SetHoveredControl(ByVal moCtrl As MouseOverControl)
         m_needsHooking = True
     End If
     If m_needsHooking Then
-        HookMouse
+        HookMouseIfNeeded
         m_needsHooking = False
     End If
 End Sub
@@ -518,7 +542,9 @@ End Sub
 '*******************************************************************************
 'Callback hook function - monitors mouse messages
 '*******************************************************************************
-Public Sub ProcessMouseData()
+Public Sub ProcessMouseData(ByVal ncode As Long _
+                          , ByVal wParam As Long _
+                          , ByRef lParam As MOUSEHOOKSTRUCTEX)
     RemoveDestroyedForms
     If m_hWndAllForms.Count = 0 Then
         UnHookMouse
@@ -539,12 +565,12 @@ Public Sub ProcessMouseData()
         If Not (className Like "F3 Server*") Then GoTo DelayHookAsync
     End If
     '
-    If m_wParam = WM_MOUSEWHEEL Or m_wParam = WM_MOUSEHWHEEL Then
+    If wParam = WM_MOUSEWHEEL Or wParam = WM_MOUSEHWHEEL Then
         Dim scrollAmount As SCROLL_AMOUNT
         Dim scrollAction As SCROLL_ACTION
         '
-        scrollAmount = GetScrollAmount(GetWheelDelta(m_lParam.mouseData))
-        scrollAction = GetScrollAction(yWheel:=(m_wParam = WM_MOUSEWHEEL))
+        scrollAmount = GetScrollAmount(GetWheelDelta(lParam.mouseData))
+        scrollAction = GetScrollAction(yWheel:=(wParam = WM_MOUSEWHEEL))
         '
         If m_isLastComboOn Then
             m_lastSO = m_lastSO And Not soPassScrollToParentAtMargins
@@ -580,32 +606,32 @@ Public Sub ProcessMouseData()
         Const sLines As Long = 3 'Constant number of lines to scroll - change as needed
         Const VK_MBUTTON As Long = &H4
         '
-        If m_wParam = WM_MBUTTONDOWN Then
-            lastX = m_lParam.tagMOUSEHOOKSTRUCT.pt.x
-            lastY = m_lParam.tagMOUSEHOOKSTRUCT.pt.y
+        If wParam = WM_MBUTTONDOWN Then
+            lastX = lParam.tagMOUSEHOOKSTRUCT.pt.x
+            lastY = lParam.tagMOUSEHOOKSTRUCT.pt.y
         End If
         '
         If GetKeyState(VK_MBUTTON) And &H8000 Then
             If IsShiftKeyDown() Then
-                scrollAmount.lines = sLines * Sgn(lastX - m_lParam.tagMOUSEHOOKSTRUCT.pt.x)
+                scrollAmount.lines = sLines * Sgn(lastX - lParam.tagMOUSEHOOKSTRUCT.pt.x)
                 If m_isLastComboOn Then GoTo DelayHookAsync
                 Call ScrollX(m_lastHoveredControl.GetControl, scrollAmount)
             Else
-                scrollAmount.lines = sLines * Sgn(lastY - m_lParam.tagMOUSEHOOKSTRUCT.pt.y)
+                scrollAmount.lines = sLines * Sgn(lastY - lParam.tagMOUSEHOOKSTRUCT.pt.y)
                 Call ScrollY(m_lastHoveredControl.GetControl, scrollAmount)
             End If
-            lastX = m_lParam.tagMOUSEHOOKSTRUCT.pt.x
-            lastY = m_lParam.tagMOUSEHOOKSTRUCT.pt.y
+            lastX = lParam.tagMOUSEHOOKSTRUCT.pt.x
+            lastY = lParam.tagMOUSEHOOKSTRUCT.pt.y
         End If
         '
         'Mouse side buttons example:
-        If m_wParam = WM_XBUTTONDOWN Then
+        If wParam = WM_XBUTTONDOWN Then
             Const HIGH_VALUE  As Single = 10000000
             '
-            If m_lParam.mouseData = &H20000 Then
+            If lParam.mouseData = &H20000 Then
                 scrollAmount.lines = HIGH_VALUE
                 ScrollY m_lastHoveredControl.GetControl, scrollAmount
-            ElseIf m_lParam.mouseData = &H10000 Then
+            ElseIf lParam.mouseData = &H10000 Then
                 scrollAmount.lines = -HIGH_VALUE
                 ScrollY m_lastHoveredControl.GetControl, scrollAmount
             End If
@@ -619,7 +645,7 @@ Public Sub ProcessMouseData()
     If foreHWnd <> fHWnd Then
         m_needsActivation = GetWindowCaption(foreHWnd) Like VBELabel
     End If
-    If Not m_needsActivation Then HookMouse
+    If Not m_needsActivation Then HookMouseIfNeeded
 Exit Sub
 DelayHookAsync:
     m_needsHooking = True
@@ -1141,14 +1167,51 @@ End Function
 '*******************************************************************************
 Private Function GetWindowUnderCursor() As LongPtr
     Dim pt As POINTAPI: GetCursorPos pt
-    '
     #If Win64 Then
-        Dim llt As LLTemplate
-        LSet llt = pt
-        GetWindowUnderCursor = WindowFromPoint(llt.ll)
+        GetWindowUnderCursor = WindowFromPoint(MemLongPtr(VarPtr(pt)))
     #Else
         GetWindowUnderCursor = WindowFromPoint(pt.x, pt.y)
     #End If
 End Function
+
+Private Property Get MemLongPtr(ByVal addr As LongPtr) As LongPtr
+    Static pa(0 To 0) As PointerAccessor
+    With pa(0)
+        If .sa.cDims = 0 Then
+            InitSafeArray .sa
+            WritePtrNatively pa, VarPtr(.sa)
+        End If
+        .sa.pvData = addr
+        .sa.rgsabound0.cElements = 1
+        MemLongPtr = .arr(0)
+        .sa.rgsabound0.cElements = 0
+        .sa.pvData = NullPtr
+    End With
+End Property
+Private Property Let MemLongPtr(ByVal addr As LongPtr, ByVal newValue As LongPtr)
+    Static pa(0 To 0) As PointerAccessor
+    With pa(0)
+        If .sa.cDims = 0 Then
+            InitSafeArray .sa
+            WritePtrNatively pa, VarPtr(.sa)
+        End If
+        .sa.pvData = addr
+        .sa.rgsabound0.cElements = 1
+        .arr(0) = newValue
+        .sa.rgsabound0.cElements = 0
+        .sa.pvData = NullPtr
+    End With
+End Property
+Private Sub InitSafeArray(ByRef sa As SAFEARRAY_1D)
+    Const FADF_AUTO = &H1
+    Const FADF_FIXEDSIZE = &H10
+    sa.cDims = 1
+    sa.cLocks = 1
+    sa.fFeatures = FADF_AUTO Or FADF_FIXEDSIZE
+End Sub
+'https://github.com/WNKLER/RefTypes/discussions/3#discussion-8595790
+Private Sub WritePtrNatively(ByRef ptrs() As LONG_PTR, ByVal ptr As LongPtr)
+    ptrs(0) = ptr
+End Sub
 
 #End If 'End of #If Mac
