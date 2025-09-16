@@ -2,22 +2,20 @@
 
 MouseScroll is a VBA Project that allows Mouse Wheel Scrolling on MSForms Controls and Userforms.
 
-- Multiple forms are tracked simultaneously. Just call the ```EnableMouseScroll``` for each form
-- Both **MODAL** and **MODELESS** forms are supported (starting **12-Oct-2023**)!
-- Debugging while the mouse is hooked is now supported (starting **12-Oct-2023**)!
+- No crashes, even if state is lost, thanks to [custom assembly bytes](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/2a6b8e2ea1668af26129f542fef21ecdb29fab80/src/MouseScroll.bas#L322-L381) (starting **Sep-2025**)!
+- Multiple forms are tracked simultaneously. Just call ```EnableMouseScroll``` for each form
+- Both **MODAL** and **MODELESS** forms are supported (starting **Oct-2023**)!
+- Debugging while the mouse is hooked is now supported (starting **Oct-2023**)!
 - This library can be extended for clicks, double-clicks and movement inputs
 - Both **vertical** and **horizontal** scroll are supported. Hold down <kbd>Shift</kbd> for horizontal scroll and <kbd>Ctrl</kbd> for Zoom
 
 ## Installation
 
-Just import the following 2 code modules into your VBA Project:
-
+Download the [latest release](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/releases/latest), extract and import the following 2 code modules into your VBA Project:
 * [**MouseScroll.bas**](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/master/src/MouseScroll.bas)
 * [**MouseOverControl.cls**](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/master/src/MouseOverControl.cls)
 
-To avoid any issues with the ```CR``` and ```LF``` characters, it is best to download the available [ZIP](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/archive/refs/heads/master.zip) and then import the modules from there.
-
-For anyone using specialized Mouse software please be aware that it might interfere with the mouse hook used in this project. For the following software, you only need to change some settings:
+For anyone using specialized Mouse software, please be aware that it might interfere with the mouse hook used in this project. For the following software, you only need to change some settings:
 - X-Mouse Button Control (XMBC). See fix [here](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/issues/20#issuecomment-1348040451)
 - StrokesPlus. See fix [here](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/issues/37#issuecomment-2028094854)
 
@@ -46,7 +44,7 @@ End Sub
 Tracking of forms is done automatically by checking if the window is still valid and if the reference count of the form's object has any references left (except the internal ones used for raising events).
 
 ## Notes
-* You can download the available Demo Workbook for a quick start
+* You can download the available [Demo Workbook](https://github.com/cristianbuse/VBA-UserForm-MouseScroll/blob/master/VBA%20UserForm%20MouseScroll_DEMO.xlsm) for a quick start
 
 ## Other Controls
 * ```ListView```, ```TreeView```, ```WebBrowser``` etc. controls are supported without the need for any changes to the code
