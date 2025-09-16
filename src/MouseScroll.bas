@@ -298,27 +298,27 @@ End Sub
 '   ScrollY and ScrollX
 '*******************************************************************************
 Private Sub HookMouseIfNeeded()
+#If x64 Then
+    Const ctrlASM As Long = &H894C
+    Const lateBindOffset As LongLong = 55
+#Else
+    Const ctrlASM As Long = &HD0FF
+    Const lateBindOffset As Long = 22
+#End If
     Static hHookAddr As LongPtr
     Static aPtr As LongPtr
     Static mProcObj As New MouseOverControl
     Static tID As Long
     Dim needsASM As Boolean
-    Dim mPtr As LongPtr
     Dim uHookAddr As LongPtr
     Dim flagAddr As LongPtr
     Dim oPtrAddr As LongPtr
-#If x64 Then
-    Const ctrlASM As Long = &H894C
-#Else
-    Const ctrlASM As Long = &HD0FF
-#End If
+    Dim mPtr As LongPtr: mPtr = VBA.Int(AddressOf MouseProcEntryASM)
     '
-    If m_hookOnFlag = 1 Then Exit Sub
     needsASM = (aPtr = NullPtr)
     If Not needsASM Then needsASM = (MemLongPtr(aPtr + 10) And &HFFFF) <> ctrlASM
     '
     If needsASM Then
-        mPtr = VBA.Int(AddressOf MouseProcEntryASM)
 #If x64 Then
         aPtr = MemLongPtr(MemLongPtr(ObjPtr(mProcObj)) + PtrSize * 14) 'mProcObj.MouseProcASM
         MemLongPtr(aPtr) = &H8244C8948^       '48 89 4C 24 08       ;MOV QWORD PTR [RSP+08],RCX
@@ -352,11 +352,9 @@ Private Sub HookMouseIfNeeded()
         MemLongPtr(aPtr + 107) = &H20C48348   '48 83 C4 20          ;ADD RSP,0x20
         MemLongPtr(aPtr + 111) = &H5D         '5D                   ;POP RBP
         MemLongPtr(aPtr + 112) = &HC3         'C3                   ;RET
-        MemLongPtr(mPtr + 55) = aPtr
 #Else
         aPtr = VBA.Int(AddressOf MouseProcASM1) 'Only enough for 33 bytes
         Dim aPtr2 As Long: aPtr2 = VBA.Int(AddressOf MouseProcASM2)
-        MemLongPtr(mPtr + 22) = aPtr
         '
         MemLongPtr(aPtr) = &H68               '68                   ;PUSH 0...
         hHookAddr = aPtr + 1
@@ -386,6 +384,8 @@ Private Sub HookMouseIfNeeded()
         MemLongPtr(uHookAddr) = GetProcAddress(GetModuleHandle("user32"), "UnhookWindowsHookEx")
         tID = GetCurrentThreadId()
     End If
+    MemLongPtr(mPtr + lateBindOffset) = aPtr 'In case of recompilation
+    If m_hookOnFlag = 1 Then Exit Sub
     m_hookOnFlag = 1
     MemLongPtr(hHookAddr) = SetWindowsHookEx(WH_MOUSE, mPtr, 0, tID)
 End Sub
