@@ -320,6 +320,10 @@ Private Sub HookMouseIfNeeded()
     '
     If needsASM Then
 #If x64 Then
+        'Force compilation - covers 'Compile On Demand' / 'Background Compile'
+        MouseProcEntryASM
+        mProcObj.MouseProcASM 0, 0, 0, 0
+        '
         aPtr = MemLongPtr(MemLongPtr(ObjPtr(mProcObj)) + PtrSize * 14) 'mProcObj.MouseProcASM
         MemLongPtr(aPtr) = &H8244C8948^       '48 89 4C 24 08       ;MOV QWORD PTR [RSP+08],RCX
         MemLongPtr(aPtr + 5) = &H1024548948^  '48 89 54 24 10       ;MOV QWORD PTR [RSP+10],RDX
@@ -353,6 +357,11 @@ Private Sub HookMouseIfNeeded()
         MemLongPtr(aPtr + 111) = &H5D         '5D                   ;POP RBP
         MemLongPtr(aPtr + 112) = &HC3         'C3                   ;RET
 #Else
+        'Force compilation
+        MouseProcEntryASM 0, 0, 0
+        MouseProcASM1
+        MouseProcASM2
+        '
         aPtr = VBA.Int(AddressOf MouseProcASM1) 'Only enough for 33 bytes
         Dim aPtr2 As Long: aPtr2 = VBA.Int(AddressOf MouseProcASM2)
         '
