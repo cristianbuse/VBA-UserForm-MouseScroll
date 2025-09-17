@@ -101,7 +101,7 @@ Friend Sub MouseProc(ByVal ncode As Long _
     ProcessMouseData ncode, wParam, lParam
 End Sub
 #If x64 Then
-Private Function MouseProcASM(v1, v2, v3, v4): End Function 'v1-v4 needed for additonal asm bytes
+Friend Function MouseProcASM(v1, v2, v3, v4): End Function 'v1-v4 needed for additonal asm bytes
 #End If
 
 #If VBA7 Then
