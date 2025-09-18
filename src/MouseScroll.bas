@@ -314,17 +314,20 @@ Private Sub HookMouseIfNeeded()
     Dim flagAddr As LongPtr
     Dim oPtrAddr As LongPtr
     Dim mPtr As LongPtr: mPtr = VBA.Int(AddressOf MouseProcEntryASM)
+    Dim aPtr2 As LongPtr
     '
     needsASM = (aPtr = NullPtr)
     If Not needsASM Then needsASM = (MemLongPtr(aPtr + 10) And &HFFFF) <> ctrlASM
     '
     If needsASM Then
-#If x64 Then
         'Force compilation - covers 'Compile On Demand' / 'Background Compile'
-        MouseProcEntryASM
-        mProcObj.MouseProcASM 0, 0, 0, 0
+        MouseProcASM1
+        MouseProcASM2
         '
-        aPtr = MemLongPtr(MemLongPtr(ObjPtr(mProcObj)) + PtrSize * 14) 'mProcObj.MouseProcASM
+        aPtr = VBA.Int(AddressOf MouseProcASM1) 'Enough for 91 bytes (x64) / 33 bytes (x32)
+        aPtr2 = VBA.Int(AddressOf MouseProcASM2)
+#If x64 Then
+        MouseProcEntryASM
         MemLongPtr(aPtr) = &H8244C8948^       '48 89 4C 24 08       ;MOV QWORD PTR [RSP+08],RCX
         MemLongPtr(aPtr + 5) = &H1024548948^  '48 89 54 24 10       ;MOV QWORD PTR [RSP+10],RDX
         MemLongPtr(aPtr + 10) = &H182444894C^ '4C 89 44 24 18       ;MOV QWORD PTR [RSP+18],R8
@@ -345,26 +348,23 @@ Private Sub HookMouseIfNeeded()
         MemLongPtr(aPtr + 65) = &HC6          'C6 00 00             ;MOV BYTE PTR [RAX],00
         MemLongPtr(aPtr + 68) = &HB948        '48 B9                ;MOV RCX,0...
         oPtrAddr = aPtr + 70
-        MemLongPtr(aPtr + 78) = &H824548B48^  '48 8B 54 24 08       ;MOV RDX,QWORD PTR [RSP+08]
-        MemLongPtr(aPtr + 83) = &H1024448B4C^ '4C 8B 44 24 10       ;MOV R8,QWORD PTR [RSP+10]
-        MemLongPtr(aPtr + 88) = &H18244C8B4C^ '4C 8B 4C 24 18       ;MOV R9,QWORD PTR [RSP+18
-        MemLongPtr(aPtr + 93) = &H18B48       '48 8B 01             ;MOV RAX,QWORD PTR [RCX] ;vtbl
-        MemLongPtr(aPtr + 96) = &H55          '55                   ;PUSH RBP
-        MemLongPtr(aPtr + 97) = &HEC8B48      '48 8B EC             ;MOV RBP,RSP
-        MemLongPtr(aPtr + 100) = &H20EC8348   '48 83 EC 20          ;SUB RSP,0x20
-        MemLongPtr(aPtr + 104) = &H6850FF     'FF 50 68             ;CALL QWORD PTR [RAX+68] ;MouseProc
-        MemLongPtr(aPtr + 107) = &H20C48348   '48 83 C4 20          ;ADD RSP,0x20
-        MemLongPtr(aPtr + 111) = &H5D         '5D                   ;POP RBP
-        MemLongPtr(aPtr + 112) = &HC3         'C3                   ;RET
+        MemLongPtr(aPtr + 78) = &HB848        '48 B8                ;MOV RAX,0...
+        MemLongPtr(aPtr + 80) = aPtr2
+        MemLongPtr(aPtr + 88) = &HE0FF        'FF E0                ;JMP RAX
+        '
+        MemLongPtr(aPtr2) = &H824548B48^       '48 8B 54 24 08       ;MOV RDX,QWORD PTR [RSP+08]
+        MemLongPtr(aPtr2 + 5) = &H1024448B4C^  '4C 8B 44 24 10       ;MOV R8,QWORD PTR [RSP+10]
+        MemLongPtr(aPtr2 + 10) = &H18244C8B4C^ '4C 8B 4C 24 18       ;MOV R9,QWORD PTR [RSP+18
+        MemLongPtr(aPtr2 + 15) = &H18B48       '48 8B 01             ;MOV RAX,QWORD PTR [RCX] ;vtbl
+        MemLongPtr(aPtr2 + 18) = &H55          '55                   ;PUSH RBP
+        MemLongPtr(aPtr2 + 19) = &HEC8B48      '48 8B EC             ;MOV RBP,RSP
+        MemLongPtr(aPtr2 + 22) = &H20EC8348    '48 83 EC 20          ;SUB RSP,0x20
+        MemLongPtr(aPtr2 + 26) = &H6850FF      'FF 50 68             ;CALL QWORD PTR [RAX+68] ;MouseProc
+        MemLongPtr(aPtr2 + 29) = &H20C48348    '48 83 C4 20          ;ADD RSP,0x20
+        MemLongPtr(aPtr2 + 33) = &H5D          '5D                   ;POP RBP
+        MemLongPtr(aPtr2 + 34) = &HC3          'C3                   ;RET
 #Else
-        'Force compilation
         MouseProcEntryASM 0, 0, 0
-        MouseProcASM1
-        MouseProcASM2
-        '
-        aPtr = VBA.Int(AddressOf MouseProcASM1) 'Only enough for 33 bytes
-        Dim aPtr2 As Long: aPtr2 = VBA.Int(AddressOf MouseProcASM2)
-        '
         MemLongPtr(aPtr) = &H68               '68                   ;PUSH 0...
         hHookAddr = aPtr + 1
         MemLongPtr(aPtr + 5) = &HB8           'B8                   ;MOV EAX,0...
@@ -402,9 +402,9 @@ End Sub
 Private Sub MouseProcEntryASM(): End Sub 'Takes care of Break Mode by default
 #Else
 Private Sub MouseProcEntryASM(a1, a2, a3): End Sub 'Args for correct RET 0x0C
+#End If
 Private Sub MouseProcASM1(): End Sub
 Private Sub MouseProcASM2(): End Sub
-#End If
 
 '*******************************************************************************
 'UnHooks Mouse
