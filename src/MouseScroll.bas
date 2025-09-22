@@ -266,13 +266,13 @@ Public Function EnableMouseScroll(ByVal uForm As MSForms.UserForm _
                                 , Optional ByVal useShiftForPerpendicularScroll As Boolean = True _
                                 , Optional ByVal useCtrlToZoom As Boolean = True) As Boolean
     If uForm Is Nothing Then Exit Function
-    HookMouseIfNeeded
     '
     AddForm uForm, passScrollToParentAtMargins _
                  , useShiftForPerpendicularScroll _
                  , useCtrlToZoom
     ResetLast
     EnableMouseScroll = True
+    HookMouseIfNeeded
 End Function
 
 '*******************************************************************************
@@ -305,8 +305,12 @@ Private Sub HookMouseIfNeeded()
     Const ctrlASM As Long = &HD0FF
     Const lateBindOffset As Long = 22
 #End If
+    Static o As IUnknown
+    Static vtbl(0 To 2) As LongPtr
+    Static vtblptr As LongPtr
     Static hHookAddr As LongPtr
     Static aPtr As LongPtr
+    Static retAddr As LongPtr
     Static mProcObj As New MouseOverControl
     Static tID As Long
     Dim needsASM As Boolean
@@ -343,14 +347,15 @@ Private Sub HookMouseIfNeeded()
         MemLongPtr(aPtr + 49) = &H5D          '5D                   ;POP RBP
         MemLongPtr(aPtr + 50) = &HB848        '48 B8                ;MOV RAX,0...
         flagAddr = aPtr + 52
-        MemLongPtr(aPtr + 60) = &H3880        '80 38 00             ;CMP BYTE PTR [RAX],0x0
-        MemLongPtr(aPtr + 63) = &H2F74        '74 2F                ;JE ... ;RET
-        MemLongPtr(aPtr + 65) = &HC6          'C6 00 00             ;MOV BYTE PTR [RAX],00
-        MemLongPtr(aPtr + 68) = &HB948        '48 B9                ;MOV RCX,0...
-        oPtrAddr = aPtr + 70
-        MemLongPtr(aPtr + 78) = &HB848        '48 B8                ;MOV RAX,0...
-        MemLongPtr(aPtr + 80) = aPtr2
-        MemLongPtr(aPtr + 88) = &HE0FF        'FF E0                ;JMP RAX
+        MemLongPtr(aPtr + 60) = &H13880       '80 38 01             ;CMP BYTE PTR [RAX],0x1
+        MemLongPtr(aPtr + 63) = &H174         '74 01                ;JE ... ;Skip RET
+        MemLongPtr(aPtr + 65) = &HC3          'C3                   ;RET
+        MemLongPtr(aPtr + 66) = &HC6          'C6 00 00             ;MOV BYTE PTR [RAX],00
+        MemLongPtr(aPtr + 69) = &HB948        '48 B9                ;MOV RCX,0...
+        oPtrAddr = aPtr + 71
+        MemLongPtr(aPtr + 79) = &HB848        '48 B8                ;MOV RAX,0...
+        MemLongPtr(aPtr + 81) = aPtr2
+        MemLongPtr(aPtr + 89) = &HE0FF        'FF E0                ;JMP RAX
         '
         MemLongPtr(aPtr2) = &H824548B48^       '48 8B 54 24 08       ;MOV RDX,QWORD PTR [RSP+08]
         MemLongPtr(aPtr2 + 5) = &H1024448B4C^  '4C 8B 44 24 10       ;MOV R8,QWORD PTR [RSP+10]
@@ -362,7 +367,7 @@ Private Sub HookMouseIfNeeded()
         MemLongPtr(aPtr2 + 26) = &H6850FF      'FF 50 68             ;CALL QWORD PTR [RAX+68] ;MouseProc
         MemLongPtr(aPtr2 + 29) = &H20C48348    '48 83 C4 20          ;ADD RSP,0x20
         MemLongPtr(aPtr2 + 33) = &H5D          '5D                   ;POP RBP
-        MemLongPtr(aPtr2 + 34) = &HC3          'C3                   ;RET
+        retAddr = aPtr2 + 34
 #Else
         MouseProcEntryASM 0, 0, 0
         MemLongPtr(aPtr) = &H68               '68                   ;PUSH 0...
@@ -387,11 +392,20 @@ Private Sub HookMouseIfNeeded()
         MemLongPtr(aPtr2 + 15) = &H18B        '8B 01                ;MOV EAX,DWORD PTR [ECX]
         MemLongPtr(aPtr2 + 17) = &H34408B     '8B 40 34             ;MOV EAX,DWORD PTR [EAX+34]
         MemLongPtr(aPtr2 + 20) = &HE0FF       'FF E0                ;JMP EAX
+        retAddr = aPtr2 + 22
 #End If
+        MemLongPtr(retAddr) = &HC3 'RET
         MemLongPtr(flagAddr) = VarPtr(m_hookOnFlag)
         MemLongPtr(oPtrAddr) = ObjPtr(mProcObj)
         MemLongPtr(uHookAddr) = GetProcAddress(GetModuleHandle("user32"), "UnhookWindowsHookEx")
         tID = GetCurrentThreadId()
+    End If
+    If vtblptr = NullPtr Then 'Set up state loss detection
+        vtbl(0) = retAddr 'IUnknown::QueryInterface
+        vtbl(1) = retAddr 'IUnknown::AddRef
+        vtbl(2) = aPtr    'IUnknown::Release
+        vtblptr = VarPtr(vtbl(0))
+        MemLongPtr(VarPtr(o)) = VarPtr(vtblptr)
     End If
     MemLongPtr(mPtr + lateBindOffset) = aPtr 'In case of recompilation
     If m_hookOnFlag = 1 Then Exit Sub
