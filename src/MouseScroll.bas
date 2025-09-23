@@ -299,10 +299,10 @@ End Sub
 '*******************************************************************************
 Private Sub HookMouseIfNeeded()
 #If x64 Then
-    Const ctrlASM As Long = &H894C
+    Const ctrlASM As Long = &H894C&
     Const lateBindOffset As LongLong = 55
 #Else
-    Const ctrlASM As Long = &HD0FF
+    Const ctrlASM As Long = &HD0FF&
     Const lateBindOffset As Long = 22
 #End If
     Static o As IUnknown
@@ -321,7 +321,7 @@ Private Sub HookMouseIfNeeded()
     Dim aPtr2 As LongPtr
     '
     needsASM = (aPtr = NullPtr)
-    If Not needsASM Then needsASM = (MemLongPtr(aPtr + 10) And &HFFFF) <> ctrlASM
+    If Not needsASM Then needsASM = (MemLongPtr(aPtr + 10) And &HFFFF&) <> ctrlASM
     '
     If needsASM Then
         'Force compilation - covers 'Compile On Demand' / 'Background Compile'
@@ -332,66 +332,66 @@ Private Sub HookMouseIfNeeded()
         aPtr2 = VBA.Int(AddressOf MouseProcASM2)
 #If x64 Then
         MouseProcEntryASM
-        MemLongPtr(aPtr) = &H8244C8948^       '48 89 4C 24 08       ;MOV QWORD PTR [RSP+08],RCX
-        MemLongPtr(aPtr + 5) = &H1024548948^  '48 89 54 24 10       ;MOV QWORD PTR [RSP+10],RDX
-        MemLongPtr(aPtr + 10) = &H182444894C^ '4C 89 44 24 18       ;MOV QWORD PTR [RSP+18],R8
-        MemLongPtr(aPtr + 15) = &HB948        '48 B9                ;MOV RCX,0...
+        MemLongPtr(aPtr) = &H8244C8948^        '48 89 4C 24 08       ;MOV QWORD PTR [RSP+08],RCX
+        MemLongPtr(aPtr + 5) = &H1024548948^   '48 89 54 24 10       ;MOV QWORD PTR [RSP+10],RDX
+        MemLongPtr(aPtr + 10) = &H182444894C^  '4C 89 44 24 18       ;MOV QWORD PTR [RSP+18],R8
+        MemLongPtr(aPtr + 15) = &HB948&        '48 B9                ;MOV RCX,0...
         hHookAddr = aPtr + 17
-        MemLongPtr(aPtr + 25) = &HB848        '48 B8                ;MOV RAX,0...
+        MemLongPtr(aPtr + 25) = &HB848&        '48 B8                ;MOV RAX,0...
         uHookAddr = aPtr + 27
-        MemLongPtr(aPtr + 35) = &H55          '55                   ;PUSH RBP
-        MemLongPtr(aPtr + 36) = &HEC8B48      '48 8B EC             ;MOV RBP,RSP
-        MemLongPtr(aPtr + 39) = &H20EC8348    '48 83 EC 20          ;SUB RSP,0x20
-        MemLongPtr(aPtr + 43) = &HD0FF        'FF D0                ;CALL RAX ;UnHookMouse
-        MemLongPtr(aPtr + 45) = &H20C48348    '48 83 C4 20          ;ADD RSP,0x20
-        MemLongPtr(aPtr + 49) = &H5D          '5D                   ;POP RBP
-        MemLongPtr(aPtr + 50) = &HB848        '48 B8                ;MOV RAX,0...
+        MemLongPtr(aPtr + 35) = &H55&          '55                   ;PUSH RBP
+        MemLongPtr(aPtr + 36) = &HEC8B48       '48 8B EC             ;MOV RBP,RSP
+        MemLongPtr(aPtr + 39) = &H20EC8348     '48 83 EC 20          ;SUB RSP,0x20
+        MemLongPtr(aPtr + 43) = &HD0FF&        'FF D0                ;CALL RAX ;UnHookMouse
+        MemLongPtr(aPtr + 45) = &H20C48348     '48 83 C4 20          ;ADD RSP,0x20
+        MemLongPtr(aPtr + 49) = &H5D&          '5D                   ;POP RBP
+        MemLongPtr(aPtr + 50) = &HB848&        '48 B8                ;MOV RAX,0...
         flagAddr = aPtr + 52
-        MemLongPtr(aPtr + 60) = &H13880       '80 38 01             ;CMP BYTE PTR [RAX],0x1
-        MemLongPtr(aPtr + 63) = &H174         '74 01                ;JE ... ;Skip RET
-        MemLongPtr(aPtr + 65) = &HC3          'C3                   ;RET
-        MemLongPtr(aPtr + 66) = &HC6          'C6 00 00             ;MOV BYTE PTR [RAX],00
-        MemLongPtr(aPtr + 69) = &HB948        '48 B9                ;MOV RCX,0...
+        MemLongPtr(aPtr + 60) = &H13880        '80 38 01             ;CMP BYTE PTR [RAX],0x1
+        MemLongPtr(aPtr + 63) = &H174&         '74 01                ;JE ... ;Skip RET
+        MemLongPtr(aPtr + 65) = &HC3&          'C3                   ;RET
+        MemLongPtr(aPtr + 66) = &HC6&          'C6 00 00             ;MOV BYTE PTR [RAX],00
+        MemLongPtr(aPtr + 69) = &HB948&        '48 B9                ;MOV RCX,0...
         oPtrAddr = aPtr + 71
-        MemLongPtr(aPtr + 79) = &HB848        '48 B8                ;MOV RAX,0...
+        MemLongPtr(aPtr + 79) = &HB848&        '48 B8                ;MOV RAX,0...
         MemLongPtr(aPtr + 81) = aPtr2
-        MemLongPtr(aPtr + 89) = &HE0FF        'FF E0                ;JMP RAX
+        MemLongPtr(aPtr + 89) = &HE0FF&        'FF E0                ;JMP RAX
         '
         MemLongPtr(aPtr2) = &H824548B48^       '48 8B 54 24 08       ;MOV RDX,QWORD PTR [RSP+08]
         MemLongPtr(aPtr2 + 5) = &H1024448B4C^  '4C 8B 44 24 10       ;MOV R8,QWORD PTR [RSP+10]
         MemLongPtr(aPtr2 + 10) = &H18244C8B4C^ '4C 8B 4C 24 18       ;MOV R9,QWORD PTR [RSP+18
         MemLongPtr(aPtr2 + 15) = &H18B48       '48 8B 01             ;MOV RAX,QWORD PTR [RCX] ;vtbl
-        MemLongPtr(aPtr2 + 18) = &H55          '55                   ;PUSH RBP
+        MemLongPtr(aPtr2 + 18) = &H55&         '55                   ;PUSH RBP
         MemLongPtr(aPtr2 + 19) = &HEC8B48      '48 8B EC             ;MOV RBP,RSP
         MemLongPtr(aPtr2 + 22) = &H20EC8348    '48 83 EC 20          ;SUB RSP,0x20
         MemLongPtr(aPtr2 + 26) = &H6850FF      'FF 50 68             ;CALL QWORD PTR [RAX+68] ;MouseProc
         MemLongPtr(aPtr2 + 29) = &H20C48348    '48 83 C4 20          ;ADD RSP,0x20
-        MemLongPtr(aPtr2 + 33) = &H5D          '5D                   ;POP RBP
+        MemLongPtr(aPtr2 + 33) = &H5D&         '5D                   ;POP RBP
         retAddr = aPtr2 + 34
 #Else
         MouseProcEntryASM 0, 0, 0
-        MemLongPtr(aPtr) = &H68               '68                   ;PUSH 0...
+        MemLongPtr(aPtr) = &H68&               '68                   ;PUSH 0...
         hHookAddr = aPtr + 1
-        MemLongPtr(aPtr + 5) = &HB8           'B8                   ;MOV EAX,0...
+        MemLongPtr(aPtr + 5) = &HB8&           'B8                   ;MOV EAX,0...
         uHookAddr = aPtr + 6
-        MemLongPtr(aPtr + 10) = &HD0FF        'FF D0                ;CALL EAX ;UnHookMouse
-        MemLongPtr(aPtr + 12) = &HB9          'B9                   ;MOV ECX,0...
+        MemLongPtr(aPtr + 10) = &HD0FF&        'FF D0                ;CALL EAX ;UnHookMouse
+        MemLongPtr(aPtr + 12) = &HB9&          'B9                   ;MOV ECX,0...
         flagAddr = aPtr + 13
-        MemLongPtr(aPtr + 17) = &H13980       '80 39 01             ;CMP BYTE PTR [ECX],01
-        MemLongPtr(aPtr + 20) = &H374         '74 03                ;JE ... ;Skip RET
-        MemLongPtr(aPtr + 22) = &HCC2         'C2 0C 00             ;RET 000C
-        MemLongPtr(aPtr + 25) = &HB8          'B8                   ;MOV EAX,0...
+        MemLongPtr(aPtr + 17) = &H13980        '80 39 01             ;CMP BYTE PTR [ECX],01
+        MemLongPtr(aPtr + 20) = &H374&         '74 03                ;JE ... ;Skip RET
+        MemLongPtr(aPtr + 22) = &HCC2&         'C2 0C 00             ;RET 000C
+        MemLongPtr(aPtr + 25) = &HB8&          'B8                   ;MOV EAX,0...
         MemLongPtr(aPtr + 26) = aPtr2
-        MemLongPtr(aPtr + 30) = &HE0FF        'FF E0                ;JMP EAX
+        MemLongPtr(aPtr + 30) = &HE0FF&        'FF E0                ;JMP EAX
         '
-        MemLongPtr(aPtr2) = &H1C6             'C6 01 00             ;MOV BYTE PTR [ECX],00
-        MemLongPtr(aPtr2 + 3) = &H2434FF      'FF 34 24             ;PUSH DWORD PTR [ESP] ;push return address
-        MemLongPtr(aPtr2 + 6) = &HB9          'B9                   ;MOV ECX,0...
+        MemLongPtr(aPtr2) = &H1C6&             'C6 01 00             ;MOV BYTE PTR [ECX],00
+        MemLongPtr(aPtr2 + 3) = &H2434FF       'FF 34 24             ;PUSH DWORD PTR [ESP] ;push return address
+        MemLongPtr(aPtr2 + 6) = &HB9&          'B9                   ;MOV ECX,0...
         oPtrAddr = aPtr2 + 7
-        MemLongPtr(aPtr2 + 11) = &H4244C89    '89 4C 24 04          ;MOV DWORD PTR [ESP+04],ECX ;mProcObj
-        MemLongPtr(aPtr2 + 15) = &H18B        '8B 01                ;MOV EAX,DWORD PTR [ECX]
-        MemLongPtr(aPtr2 + 17) = &H34408B     '8B 40 34             ;MOV EAX,DWORD PTR [EAX+34]
-        MemLongPtr(aPtr2 + 20) = &HE0FF       'FF E0                ;JMP EAX
+        MemLongPtr(aPtr2 + 11) = &H4244C89     '89 4C 24 04          ;MOV DWORD PTR [ESP+04],ECX ;mProcObj
+        MemLongPtr(aPtr2 + 15) = &H18B&        '8B 01                ;MOV EAX,DWORD PTR [ECX]
+        MemLongPtr(aPtr2 + 17) = &H34408B      '8B 40 34             ;MOV EAX,DWORD PTR [EAX+34]
+        MemLongPtr(aPtr2 + 20) = &HE0FF&       'FF E0                ;JMP EAX
         retAddr = aPtr2 + 22
 #End If
         MemLongPtr(retAddr) = &HC3 'RET
