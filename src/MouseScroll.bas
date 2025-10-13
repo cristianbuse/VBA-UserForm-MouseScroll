@@ -568,6 +568,8 @@ End Sub
 Public Sub ProcessMouseData(ByVal ncode As Long _
                           , ByVal wParam As Long _
                           , ByRef lParam As MOUSEHOOKSTRUCTEX)
+    Static doingEvents As Boolean: If doingEvents Then Exit Sub
+    '
     RemoveDestroyedForms
     If m_hWndAllForms.Count = 0 Then
         UnHookMouse
@@ -661,7 +663,10 @@ Public Sub ProcessMouseData(ByVal ncode As Long _
         End If
     End If
     '
+    doingEvents = True 'Avoid other hook calls while other events are processed
     DoEvents
+    doingEvents = False
+    '
     'Make sure VBE is not activated as this would make the forms lose focus
     Const VBELabel As String = "Microsoft Visual Basic for Applications*"
     Dim foreHWnd As LongPtr: foreHWnd = GetForegroundWindow()
