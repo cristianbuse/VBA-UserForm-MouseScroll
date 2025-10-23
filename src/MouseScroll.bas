@@ -257,6 +257,7 @@ End Enum
 Private m_lastSO As SCROLL_OPTIONS
 
 Private m_hookOnFlag As Byte 'See HookMouseIfNeeded
+Private m_doingEvents As Boolean
 
 '*******************************************************************************
 'Enables mouse wheel scroll for the specified UserForm
@@ -273,6 +274,7 @@ Public Function EnableMouseScroll(ByVal uForm As MSForms.UserForm _
     ResetLast
     EnableMouseScroll = True
     HookMouseIfNeeded
+    m_doingEvents = False 'In case Modal form is added on top of Modal
 End Function
 
 '*******************************************************************************
@@ -568,7 +570,7 @@ End Sub
 Public Sub ProcessMouseData(ByVal ncode As Long _
                           , ByVal wParam As Long _
                           , ByRef lParam As MOUSEHOOKSTRUCTEX)
-    Static doingEvents As Boolean: If doingEvents Then Exit Sub
+    If m_doingEvents Then Exit Sub
     '
     RemoveDestroyedForms
     If m_hWndAllForms.Count = 0 Then
@@ -663,9 +665,9 @@ Public Sub ProcessMouseData(ByVal ncode As Long _
         End If
     End If
     '
-    doingEvents = True 'Avoid other hook calls while other events are processed
+    m_doingEvents = True 'Avoid other hook calls while other events are processed
     DoEvents
-    doingEvents = False
+    m_doingEvents = False
     '
     'Make sure VBE is not activated as this would make the forms lose focus
     Const VBELabel As String = "Microsoft Visual Basic for Applications*"
