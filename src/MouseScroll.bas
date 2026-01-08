@@ -66,6 +66,9 @@ Option Private Module
 #Const x64 = Win64
 #Const x32 = (x64 = 0)
 
+'https://github.com/cristianbuse/VBA-UserForm-MouseScroll/issues/41
+#Const CompilerError35010 = False
+
 #If Mac Then 'Placeholders
     Public Function EnableMouseScroll(ByVal uForm As MSForms.UserForm _
                                     , Optional ByVal passScrollToParentAtMargins As Boolean = True _
@@ -125,6 +128,11 @@ End Type
     Private Declare Function ShowWindowAsync Lib "user32" (ByVal hwnd As Long, ByVal nCmdShow As Long) As Long
     Private Declare Function SystemParametersInfo Lib "user32" Alias "SystemParametersInfoA" (ByVal uAction As Long, ByVal uParam As Long, ByRef lpvParam As Any, ByVal fuWinIni As Long) As Long
     Private Declare Function WindowFromPoint Lib "user32" (ByVal xPoint As Long, ByVal yPoint As Long) As Long
+#End If
+#If CompilerError35010 And x64 Then
+    Private Declare PtrSafe Function VirtualAlloc Lib "kernel32" (lpAddress As Any, ByVal dwSize As LongPtr, ByVal flAllocationType As Long, ByVal flProtect As Long) As LongPtr
+    Private Declare PtrSafe Function GetEnvironmentVariable Lib "kernel32" Alias "GetEnvironmentVariableA" (ByVal lpName As String, ByVal lpBuffer As String, ByVal nSize As Long) As Long
+    Private Declare PtrSafe Function SetEnvironmentVariable Lib "kernel32" Alias "SetEnvironmentVariableA" (ByVal lpName As String, ByVal lpValue As String) As Long
 #End If
 
 #If VBA7 = 0 Then
@@ -315,23 +323,40 @@ Private Sub HookMouseIfNeeded()
     Static retAddr As LongPtr
     Static mProcObj As New MouseOverControl
     Static tID As Long
-    Dim needsASM As Boolean
     Dim uHookAddr As LongPtr
     Dim flagAddr As LongPtr
     Dim oPtrAddr As LongPtr
-    Dim mPtr As LongPtr: mPtr = VBA.Int(AddressOf MouseProcEntryASM)
+    Dim mPtr As LongPtr
     Dim aPtr2 As LongPtr
+    Dim needsASM As Boolean: needsASM = (aPtr = NullPtr)
     '
-    needsASM = (aPtr = NullPtr)
+#If Not CompilerError35010 Then
+    mPtr = VBA.Int(AddressOf MouseProcEntryASM)
     If Not needsASM Then needsASM = (MemLongPtr(aPtr + 10) And &HFFFF&) <> ctrlASM
+#End If
     '
     If needsASM Then
+#If CompilerError35010 And x64 Then
+        Const MEM_COMMIT As Long = &H1000
+        Const PAGE_EXECUTE_READWRITE As Long = &H40
+        Dim buff As String: buff = Space$(21)
+        Dim l As Long:      l = GetEnvironmentVariable("MouseScroll", buff, 20)
+        '
+        If l = 0 Then
+            aPtr = VirtualAlloc(0, 160, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+            SetEnvironmentVariable "MouseScroll", CStr(aPtr)
+        Else
+            aPtr = CLngLng(Left$(buff, l))
+        End If
+        aPtr2 = aPtr + 91
+#Else
         'Force compilation - covers 'Compile On Demand' / 'Background Compile'
         MouseProcASM1
         MouseProcASM2
         '
         aPtr = VBA.Int(AddressOf MouseProcASM1) 'Enough for 91 bytes (x64) / 33 bytes (x32)
         aPtr2 = VBA.Int(AddressOf MouseProcASM2)
+#End If
 #If x64 Then
         MouseProcEntryASM
         MemLongPtr(aPtr) = &H8244C8948^        '48 89 4C 24 08       ;MOV QWORD PTR [RSP+08],RCX
@@ -409,7 +434,11 @@ Private Sub HookMouseIfNeeded()
         vtblptr = VarPtr(vtbl(0))
         MemLongPtr(VarPtr(o)) = VarPtr(vtblptr)
     End If
+#If CompilerError35010 Then
+    mPtr = aPtr
+#Else
     MemLongPtr(mPtr + lateBindOffset) = aPtr 'In case of recompilation
+#End If
     If m_hookOnFlag = 1 Then Exit Sub
     m_hookOnFlag = 1
     MemLongPtr(hHookAddr) = SetWindowsHookEx(WH_MOUSE, mPtr, 0, tID)
