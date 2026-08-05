@@ -628,6 +628,12 @@ Public Sub ProcessMouseData(ByVal ncode As Long _
         scrollAmount = GetScrollAmount(GetWheelDelta(lParam.mouseData))
         scrollAction = GetScrollAction(yWheel:=(wParam = WM_MOUSEWHEEL))
         '
+        'Real H scroll direction fix - see issue #59
+        If wParam = WM_MOUSEHWHEEL Then
+            scrollAmount.lines = -scrollAmount.lines
+            scrollAmount.pages = -scrollAmount.pages
+        End If
+        '
         If m_isLastComboOn Then
             m_lastSO = m_lastSO And Not soPassScrollToParentAtMargins
             Call ScrollY(m_lastCombo, scrollAmount)
