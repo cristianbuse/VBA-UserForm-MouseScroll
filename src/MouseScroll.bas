@@ -331,6 +331,11 @@ Private Sub HookMouseIfNeeded()
     Dim needsASM As Boolean: needsASM = (aPtr = NullPtr)
     '
 #If Not CompilerError35010 Then
+    #If x64 Then
+        MouseProcEntryASM
+    #Else
+        MouseProcEntryASM 0, 0, 0
+    #End If
     mPtr = VBA.Int(AddressOf MouseProcEntryASM)
     If Not needsASM Then needsASM = (VBA.Int(AddressOf MouseProcASM1) <> aPtr) _
                                  Or (VBA.Int(AddressOf MouseProcASM2) <> aPtr2)
@@ -363,7 +368,6 @@ Private Sub HookMouseIfNeeded()
         aPtr2 = VBA.Int(AddressOf MouseProcASM2)
 #End If
 #If x64 Then
-        MouseProcEntryASM
         MemLongPtr(aPtr) = &H8244C8948^        '48 89 4C 24 08       ;MOV QWORD PTR [RSP+08],RCX
         MemLongPtr(aPtr + 5) = &H1024548948^   '48 89 54 24 10       ;MOV QWORD PTR [RSP+10],RDX
         MemLongPtr(aPtr + 10) = &H182444894C^  '4C 89 44 24 18       ;MOV QWORD PTR [RSP+18],R8
@@ -401,7 +405,6 @@ Private Sub HookMouseIfNeeded()
         MemLongPtr(aPtr2 + 33) = &H5D&         '5D                   ;POP RBP
         retAddr = aPtr2 + 34
 #Else
-        MouseProcEntryASM 0, 0, 0
         MemLongPtr(aPtr) = &H68&               '68                   ;PUSH 0...
         hHookAddr = aPtr + 1
         MemLongPtr(aPtr + 5) = &HB8&           'B8                   ;MOV EAX,0...
