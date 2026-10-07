@@ -68,7 +68,6 @@ Option Private Module
 
 'https://github.com/cristianbuse/VBA-UserForm-MouseScroll/issues/41
 #Const CompilerError35010 = False
-
 #If Mac Then 'Placeholders
     Public Function EnableMouseScroll(ByVal uForm As MSForms.UserForm _
                                     , Optional ByVal passScrollToParentAtMargins As Boolean = True _
@@ -390,8 +389,8 @@ Private Sub HookMouseIfNeeded()
         MemLongPtr(aPtr + 69) = &HB948&        '48 B9                ;MOV RCX,0...
         oPtrAddr = aPtr + 71
         MemLongPtr(aPtr + 79) = &HB848&        '48 B8                ;MOV RAX,0...
+        MemLongPtr(aPtr + 83) = &HE0FF000000000000^ 'FF E0           ;JMP RAX (write at aPtr + 89 without exceeding 91 boundary)
         MemLongPtr(aPtr + 81) = aPtr2
-        MemLongPtr(aPtr + 89) = &HE0FF&        'FF E0                ;JMP RAX
         '
         MemLongPtr(aPtr2) = &H824548B48^       '48 8B 54 24 08       ;MOV RDX,QWORD PTR [RSP+08]
         MemLongPtr(aPtr2 + 5) = &H1024448B4C^  '4C 8B 44 24 10       ;MOV R8,QWORD PTR [RSP+10]
@@ -416,8 +415,8 @@ Private Sub HookMouseIfNeeded()
         MemLongPtr(aPtr + 20) = &H374&         '74 03                ;JE ... ;Skip RET
         MemLongPtr(aPtr + 22) = &HCC2&         'C2 0C 00             ;RET 000C
         MemLongPtr(aPtr + 25) = &HB8&          'B8                   ;MOV EAX,0...
+        MemLongPtr(aPtr + 28) = &HE0FF0000     'FF E0                ;JMP EAX (write at aPtr + 30 without exceeding 33 boundary)
         MemLongPtr(aPtr + 26) = aPtr2
-        MemLongPtr(aPtr + 30) = &HE0FF&        'FF E0                ;JMP EAX
         '
         MemLongPtr(aPtr2) = &H1C6&             'C6 01 00             ;MOV BYTE PTR [ECX],00
         MemLongPtr(aPtr2 + 3) = &H2434FF       'FF 34 24             ;PUSH DWORD PTR [ESP] ;push return address
